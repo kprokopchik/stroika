@@ -10,6 +10,7 @@ import math
 import eng_svg as S
 from eng_svg import C
 from panel_wiring import wiring_blocks, ups_wiring_svg
+from panel_readable import overview_svg, circuit_pages
 
 RN = {
     "spalnya": "Спальня", "detskaya-1": "Детская 1", "detskaya-2": "Детская 2",
@@ -498,51 +499,8 @@ def panel_info():
 
 
 def panel_svg():
-    """Раскладка: 4 ряда по 18 модулей, с зонами шин и выходных клемм."""
-    M = 18
-    fills = {"in": ("#E9ECEF", "#495057"), "mcb": ("#FFFFFF", "#495057"), "rcd": ("#E7F0FF", "#1F5FBF"),
-             "ups": ("#FFE8CC", "#E8590C"), "free": ("#FFFFFF", "#ADB5BD")}
-    W = 18 * M
-    rh = 118
-    height = len(PANEL_ROWS) * rh
-    out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -34 {W + 28} {height + 64}" role="img" aria-label="Раскладка модулей в щите">',
-           f'<rect x="-14" y="-34" width="{W + 28}" height="{height + 64}" fill="#FFFFFF"/>',
-           f'<rect x="-8" y="-8" width="{W + 16}" height="{height + 10}" rx="6" fill="#F8F9FA" stroke="#343A40" stroke-width="1.6"/>',
-           S.txt(W / 2, -21, "Щит: 72 модуля · 4×18 · габариты по выбранному корпусу", fs=8, font=S.SANS, weight=700, halo=False)]
-    for ri, row in enumerate(PANEL_ROWS):
-        y0 = ri * rh + 6
-        out.append(f'<rect x="0" y="{y0 + 38}" width="{W}" height="10" fill="#CED4DA"/>')
-        x = 0
-        for key in row:
-            code, rating, label, mods, kind, title, _ = DEV[key]
-            f, st = fills[kind]
-            w = mods * M
-            dash = ' stroke-dasharray="4 3"' if kind == "free" else ""
-            out.append(f'<g class="hit" data-info="{key}" tabindex="0" role="button" aria-label="{title}">')
-            out.append(f'<rect class="hit-box" x="{x + 1}" y="{y0}" width="{w - 2}" height="86" rx="3" fill="{f}" stroke="{st}" stroke-width="1.2"{dash}/>')
-            if code:
-                c = f"Гр.{code}" if code.isdigit() else code
-                out.append(S.txt(x + w / 2, y0 + 10, c, fs=7.6 if mods > 1 else 6.4, fill=st, weight=700, font=S.SANS, halo=False))
-                out.append(S.txt(x + w / 2, y0 + 21, rating, fs=5.6 if mods > 1 else 5, fill="#343A40", weight=600, halo=False))
-            words = label.split()
-            lines, cur = [], ""
-            lim = 9 if mods >= 2 else 5
-            for wd in words:
-                if len(cur) + len(wd) + 1 > lim and cur:
-                    lines.append(cur)
-                    cur = wd
-                else:
-                    cur = (cur + " " + wd).strip()
-            if cur:
-                lines.append(cur)
-            for li, ln in enumerate(lines[:5]):
-                out.append(S.txt(x + w / 2, y0 + 50 + li * 7.4, ln, fs=5.6 if mods > 1 else 4.8, fill="#343A40", weight=500, font=S.SANS, halo=False))
-            out.append("</g>")
-            x += w
-        assert x == W, (ri, x)
-    out.append(S.txt(W / 2, height + 14, "XPE — отдельная PE-шина. XN — только входы групп. Выходные N не объединять.", fs=6.5, font=S.SANS, weight=500, halo=False, fill="#495057"))
-    out.append("</svg>")
-    return "".join(out)
+    """Монтажный вид: аппараты по рейкам и проводники между их контактами."""
+    return overview_svg(PANEL_ROWS, DEV)
 
 
 def ups_svg():
@@ -1072,8 +1030,9 @@ def build(n):
             "shchit": {
                 "lede": "Щит на 72 модуля в технической секции шкафа-купе у входа, на высоте 130–207 см. Вводные аппараты и 17 групп, схемы проводников L/N/PE, шины и маркировка выходных клемм. Схема при допущении ввода 230 В, 50 А; окончательные аппараты и защиту ИБП подтвердить до монтажа. Нажмите на любой аппарат на схеме — откроется его описание.",
                 "blocks": [
-                    ("diagram", "Раскладка модулей", panel_svg(), "Нажмите на аппарат — откроется описание. Синие — дифавтоматы, оранжевые — линия ИБП, пунктир — зоны блоков, клемм и резерв. Положение на рейке не задаёт порядок электрических соединений: они показаны ниже.", panel_info()),
-                    *wiring_blocks(GROUPS),
+                    ("diagram", "Расположение аппаратов и адреса подключений", panel_svg(), "Нажмите на QS/KV/QD, группу QF1–QF17 или SA: ниже откроется её цепь. Короткие подписи → X1…X17 заменяют длинные межреечные линии; они не изображают маршрут прокладки."),
+                    ("circuit_browser", "Подключение выбранной цепи", circuit_pages(GROUPS, DEV, PANEL_ROWS), panel_info()),
+                    *[b for b in wiring_blocks(GROUPS) if b[0] != "diagram"],
                     ("table", "Группы", ["№", "Что питает", "Защита", "Кабель", "кВт"], gr_rows, None),
                     ("cards", [
                         ("Ввод", None, [

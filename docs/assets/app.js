@@ -142,6 +142,11 @@
     // карточка описания элемента схемы
     var pop = root.querySelector('.pz-pop');
     function showInfo(key) {
+      var target = root.querySelector('[data-info="' + key + '"][data-circuit]');
+      if (target) {
+        document.dispatchEvent(new CustomEvent('panel-circuit', { detail: { key: target.getAttribute('data-circuit') } }));
+        return;
+      }
       var src = document.getElementById('info-' + key);
       if (!pop || !src) return;
       root.querySelectorAll('[data-info].sel').forEach(function (n) { n.classList.remove('sel'); });
@@ -156,10 +161,6 @@
         pop.hidden = true;
         root.querySelectorAll('[data-info].sel').forEach(function (n) { n.classList.remove('sel'); });
       });
-      root.addEventListener('keydown', function (e) {
-        var t = e.target.closest && e.target.closest('[data-info]');
-        if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showInfo(t.getAttribute('data-info')); }
-      });
       var wrap = root.closest('.dblock');
       if (wrap) wrap.querySelectorAll('details.info').forEach(function (d) {
         d.addEventListener('toggle', function () {
@@ -170,6 +171,10 @@
         });
       });
     }
+    root.addEventListener('keydown', function (e) {
+      var t = e.target.closest && e.target.closest('[data-info]');
+      if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showInfo(t.getAttribute('data-info')); }
+    });
     var orig = root.querySelector('[data-pz-orig]');
     if (orig) orig.addEventListener('change', function () { root.classList.toggle('show-orig', orig.checked); });
     document.addEventListener('keydown', function (e) {
@@ -179,4 +184,22 @@
   }
 
   document.querySelectorAll('[data-pz]').forEach(function (el) { new PanZoom(el); });
+  document.querySelectorAll('[data-circuit-browser]').forEach(function (browser) {
+    var select = browser.querySelector('[data-circuit-select]');
+    var sheets = Array.from(browser.querySelectorAll('[data-circuit-panel]'));
+    browser.classList.add('enhanced');
+    function choose(key, scroll) {
+      if (!sheets.some(function (s) { return s.getAttribute('data-circuit-panel') === key; })) return;
+      select.value = key;
+      sheets.forEach(function (s) { s.open = s.getAttribute('data-circuit-panel') === key; });
+      if (scroll) {
+        // Выход из полноэкранной раскладки перед переходом к листу цепи.
+        document.querySelectorAll('.pz.is-full [data-pz-full]').forEach(function (b) { b.click(); });
+        browser.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
+    }
+    select.addEventListener('change', function () { choose(select.value, false); });
+    document.addEventListener('panel-circuit', function (e) { choose(e.detail.key, true); });
+    choose(select.value, false);
+  });
 })();
