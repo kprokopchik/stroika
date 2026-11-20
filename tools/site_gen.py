@@ -210,6 +210,18 @@ def blocks_html(blocks):
     return f'<section class="block eblocks">{"".join(out)}</section>' if out else ""
 
 
+def pdf_link(p, page_dir, name, label):
+    """Кнопка «PDF», если файл собран tools/make_pdf.py."""
+    if not (p.dir / "pdf" / f"{name}.pdf").exists():
+        return ""
+    return f'<a class="btn pdf" href="{rel(page_dir, f"{p.slug}/pdf/{name}.pdf")}" download>{E(label)}</a>'
+
+
+def pdfs(*links):
+    links = [x for x in links if x]
+    return f'<p class="pdfs">{"".join(links)}</p>' if links else ""
+
+
 def chips(lst):
     return '<div class="chips">' + "".join(f'<span class="chip {c}">{t}</span>' for c, t in lst) + "</div>"
 
@@ -394,6 +406,7 @@ def pages_for(p, projects):
   <h1>{v["title"]}</h1>
   <p class="lede">{v["lede"]}</p>
   {chips(v["chips"])}
+  {pdfs(pdf_link(p, vdir, f"v{n}-album", "Все листы варианта одним PDF"), pdf_link(p, vdir, f"v{n}-plan", "План, PDF A3"))}
 </header>
 <section class="block vplan">
   <a class="card preview" href="{rel(vdir, f"{vdir}/plan/index.html")}" aria-label="Открыть план с зумом">{preview}<span class="open">Открыть план с зумом →</span></a>
@@ -409,7 +422,7 @@ def pages_for(p, projects):
 
         # план целиком
         pdir = f"{vdir}/plan"
-        body = f'''<header class="phead compact"><h1>План квартиры</h1><p class="lede">{vname} · {E(o.VARIANT_SHORT.get(n, ""))}. Размеры в сантиметрах.</p></header>
+        body = f'''<header class="phead compact"><h1>План квартиры</h1><p class="lede">{vname} · {E(o.VARIANT_SHORT.get(n, ""))}. Размеры в сантиметрах.</p>{pdfs(pdf_link(p, pdir, f"v{n}-plan", "PDF для печати · A3, 1:50"))}</header>
 {viewer(svg_with(svg, asset(pdir, p.meta["plan_image"])), "pz-main", overlay=True)}
 {LEGEND}
 <section class="block"><h2>Комнаты</h2><div class="rcards">{"".join(x.replace('href="', 'href="../') for x in rooms_cards)}</div></section>'''
@@ -475,7 +488,7 @@ def pages_for(p, projects):
             rooms_l = "".join(f'<li>{link(sdir, f"{sdir}/{r["id"]}", E(p.room(r, n)["name"]))}</li>' for r in o.ROOMS)
             plan_svg = svg_with(svg, asset(sdir, p.meta["plan_image"]))
             if D:
-                body = f'''<header class="phead compact"><div class="eyebrow">{vname} · раздел</div><h1>{E(s["name"])}</h1><p class="lede">{E(D["lede"])}</p></header>
+                body = f'''<header class="phead compact"><div class="eyebrow">{vname} · раздел</div><h1>{E(s["name"])}</h1><p class="lede">{E(D["lede"])}</p>{pdfs(pdf_link(p, sdir, f"v{n}-{s['id']}", "PDF раздела · план A3 и пояснения"), pdf_link(p, sdir, f"v{n}-album", "Все листы варианта"))}</header>
 <div class="underlay">{viewer(with_overlay(plan_svg, D["overlay"]), "pz-main", layers=D["layers"], note="Кнопки внизу включают и выключают слои. Щипок или колесо мыши — зум, двойной тап — приблизить.")}</div>
 {legend_html(D["legend"])}
 {blocks_html(D["blocks"])}
@@ -490,7 +503,7 @@ def pages_for(p, projects):
                 xdir = f"{sdir}/{x['id']}"
                 X = D["extras"].get(x["id"]) if D else None
                 if X:
-                    body = f'''<header class="phead compact"><div class="eyebrow">{vname} · {E(s["name"])}</div><h1>{E(x["name"])}</h1><p class="lede">{E(X["lede"])}</p></header>
+                    body = f'''<header class="phead compact"><div class="eyebrow">{vname} · {E(s["name"])}</div><h1>{E(x["name"])}</h1><p class="lede">{E(X["lede"])}</p>{pdfs(pdf_link(p, xdir, f"v{n}-{s['id']}-{x['id']}", "PDF для печати · A4"))}</header>
 {blocks_html(X["blocks"])}
 <nav class="pager" aria-label="Раздел">{link(xdir, sdir, "← " + E(s["name"]) + " по всей квартире")}</nav>'''
                 else:
@@ -579,7 +592,7 @@ def build_site(root: Path):
         dst = out / p.slug
         dst.mkdir(parents=True)
         shutil.copy(p.dir / p.meta["plan_image"], dst / p.meta["plan_image"])
-        for sub in ("renders", "models"):
+        for sub in ("renders", "models", "pdf"):
             if (p.dir / sub).exists():
                 shutil.copytree(p.dir / sub, dst / sub)
         pages += pages_for(p, projects)

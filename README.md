@@ -32,6 +32,8 @@ tools/
   site_gen.py            генератор страниц
   scene3d.py             3D-модель и рендеры в Blender (по желанию)
   post3d.py              сжатие рендеров и подписи на виде сверху
+  eng_svg.py             условные обозначения инженерных разделов
+  make_pdf.py, pdf.js    листы для печати и PDF через Chromium
 site_assets/             стили и скрипты сайта (меню, зум планов, 3D)
 projects/<объект>/
   object.py              название, описание, ссылки застройщика, комнаты, разделы
@@ -39,7 +41,9 @@ projects/<объект>/
   content.py             тексты: описания вариантов, заметки по комнатам, подписи рендеров, сравнение
   scene_cfg.py           камеры и свет для 3D
   plan.jpg               план застройщика
+  eng.py                 инженерные разделы: точки, трассы, щит, схемы
   renders/  models/      готовые рендеры (.jpg) и 3D-модели (.glb)
+  pdf/                   PDF для печати (tools/make_pdf.py)
 docs/                    собранный сайт, его раздаёт GitHub Pages
 ```
 
@@ -61,6 +65,20 @@ cd docs && python3 -m http.server 8000   # открыть http://localhost:8000
 ## Публикация на GitHub Pages
 
 Один раз в настройках репозитория: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, ветка `main`, папка `/docs`, Save. Через минуту сайт появится по адресу выше. Дальше достаточно пушить пересобранную папку `docs/`. Свои workflow не нужны. В `docs/` лежит `.nojekyll`, поэтому GitHub раздаёт файлы как есть, без Jekyll.
+
+## PDF для печати (по желанию)
+
+Планы вариантов на A3 в масштабе 1:50, разделы (план A3 и пояснения A4), щит, ИБП, коллектор, шкаф на A4 и альбом варианта со всеми листами. На сайте у этих страниц появляется кнопка «PDF».
+
+Нужны Node.js и Playwright с Chromium (один раз: `npm i playwright && npx playwright install chromium`).
+
+```bash
+python3 tools/make_pdf.py          # все объекты → projects/<объект>/pdf/
+python3 tools/make_pdf.py kvartira-95
+python3 build.py                   # копирует PDF в docs/ и ставит ссылки
+```
+
+PDF пересобираем после правок планов или разделов: сами они не обновляются.
 
 ## 3D-рендеры и модели (по желанию)
 
