@@ -249,6 +249,14 @@ body.pz-lock { overflow: hidden; }
 .pz-chip:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pz.is-full .pz-layers { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
 .pz-diagram .pz { height: min(78svh, 760px); }
+.circuit-browser { scroll-margin-top: 24px; margin: 24px 0; }
+.circuit-select { display: grid; gap: 8px; font-weight: 600; margin-bottom: 16px; }
+.circuit-select select { width: 100%; min-width: 0; padding: 12px; border: 1px solid #B8C8CF; border-radius: 8px; background: #FFF; color: #26363D; font: inherit; }
+.circuit-sheet { border: 1px solid #D6E0E4; border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+.circuit-sheet > summary, .circuit-apparatus > summary { cursor: pointer; padding: 14px; font-weight: 600; }
+.circuit-browser.enhanced .circuit-sheet:not([open]) { display: none; }
+.pz-circuit .pz { height: min(110vw, 720px); }
+.circuit-apparatus { margin: 20px 0; }
 /* кликабельные элементы схем и карточка описания */
 .pz .hit { cursor: pointer; }
 .pz .hit:hover .hit-box { stroke: #147A82; stroke-width: 2; }

@@ -194,6 +194,25 @@ def blocks_html(blocks):
             out.append('<div class="ecards">' + "".join(note_card(t, m, lis) for t, m, lis in b[1]) + "</div>")
         elif kind == "table":
             out.append(table_html(*b[1:]))
+        elif kind == "circuit_browser":
+            _, title, circuits, info = b
+            options = "".join(f'<option value="{E(c["id"])}">{E(c["title"])}</option>' for c in circuits)
+            sheets = []
+            for i, c in enumerate(circuits):
+                # Место под кнопки зума, как в обычном блоке diagram.
+                svg = c["svg"]
+                m = re.search(r'viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"', svg)
+                if m:
+                    x, y, w, h = map(float, m.groups())
+                    svg = svg.replace(m.group(0), f'viewBox="{x:g} {y-w*.13:g} {w:g} {h+w*.13:g}"', 1)
+                sheets.append(f'<details class="circuit-sheet" data-circuit-panel="{E(c["id"])}"{" open" if i == 0 else ""}>'
+                              f'<summary>{E(c["title"])}</summary>{viewer(svg, "pz-diagram pz-circuit", note="Одна цепь на листе. Цвета L/N/PE сохранены; остальные группы здесь не показаны.")}</details>')
+            apparatus = "".join(f'<details class="info" id="info-{k}" data-key="{k}"><summary><b>{t}</b><span class="m">{sub}</span></summary>'
+                                f'<div class="info-body">{body}</div></details>' for k, t, sub, body in info)
+            out.append(f'<section class="circuit-browser" data-circuit-browser><h3>{E(title)}</h3>'
+                       f'<label class="circuit-select">Показать подключение<select data-circuit-select>{options}</select></label>'
+                       f'<div class="circuit-sheets">{"".join(sheets)}</div></section>'
+                       f'<details class="circuit-apparatus"><summary>Параметры и назначение всех аппаратов</summary><div class="infolist">{apparatus}</div></details>')
         elif kind == "diagram":
             _, title, svg, note, *rest = b
             info = rest[0] if rest else None

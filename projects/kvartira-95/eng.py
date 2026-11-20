@@ -10,7 +10,7 @@ import math
 import eng_svg as S
 from eng_svg import C
 from panel_wiring import wiring_blocks, ups_wiring_svg
-from panel_mount import mounting_svg
+from panel_readable import overview_svg, circuit_pages
 
 RN = {
     "spalnya": "Спальня", "detskaya-1": "Детская 1", "detskaya-2": "Детская 2",
@@ -500,7 +500,7 @@ def panel_info():
 
 def panel_svg():
     """Монтажный вид: аппараты по рейкам и проводники между их контактами."""
-    return mounting_svg(PANEL_ROWS, DEV)
+    return overview_svg(PANEL_ROWS, DEV)
 
 
 def ups_svg():
@@ -1030,9 +1030,9 @@ def build(n):
             "shchit": {
                 "lede": "Щит на 72 модуля в технической секции шкафа-купе у входа, на высоте 130–207 см. Вводные аппараты и 17 групп, схемы проводников L/N/PE, шины и маркировка выходных клемм. Схема при допущении ввода 230 В, 50 А; окончательные аппараты и защиту ИБП подтвердить до монтажа. Нажмите на любой аппарат на схеме — откроется его описание.",
                 "blocks": [
-                    ("diagram", "Монтажный вид: провода на аппаратах", panel_svg(), "Провода показаны прямо на раскладке 4×18: входные гребёнки, перемычки, выходы X1–X17 и возврат ИБП XU. Слои можно выключать для чтения отдельных цепей. Контакты функциональные; заводскую нумерацию сверить по паспортам. Нажмите на аппарат — откроется описание.", panel_info(),
-                     [("feeds", "Ввод и питание", True), ("outputs", "Выходы групп", True), ("pe", "PE", True), ("ups", "ИБП", True)]),
-                    *wiring_blocks(GROUPS),
+                    ("diagram", "Расположение аппаратов и адреса подключений", panel_svg(), "Нажмите на QS/KV/QD, группу QF1–QF17 или SA: ниже откроется её цепь. Короткие подписи → X1…X17 заменяют длинные межреечные линии; они не изображают маршрут прокладки."),
+                    ("circuit_browser", "Подключение выбранной цепи", circuit_pages(GROUPS, DEV, PANEL_ROWS), panel_info()),
+                    *[b for b in wiring_blocks(GROUPS) if b[0] != "diagram"],
                     ("table", "Группы", ["№", "Что питает", "Защита", "Кабель", "кВт"], gr_rows, None),
                     ("cards", [
                         ("Ввод", None, [

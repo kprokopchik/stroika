@@ -45,6 +45,14 @@ def blocks_print(blocks):
             out.append('<div class="pcards">' + "".join(G.note_card(t, m, lis) for t, m, lis in b[1]) + "</div>")
         elif kind == "table":
             out.append(G.table_html(*b[1:]))
+        elif kind == "circuit_browser":
+            _, title, circuits, info = b
+            out.append(f'<h3>{E(title)}</h3><p class="sub">В печати: ввод, пример группы QF1 и ИБП. Остальные группы подключаются по тем же обозначениям из таблицы; отдельный лист каждой группы доступен на сайте.</p>')
+            for c in circuits:
+                if c.get("print"):
+                    out.append(f'<div class="pdiag"><h3>{E(c["title"])}</h3><div class="pd-fig">{c["svg"]}</div></div>')
+            items = "".join(f'<div class="pi"><h4>{t} <span class="m">{sub}</span></h4>{body}</div>' for k, t, sub, body in info)
+            out.append(f'<div class="pinfo"><h3>Аппараты щита</h3>{items}</div>')
         elif kind == "diagram":
             _, title, svg, note, *rest = b
             info = rest[0] if rest else None
