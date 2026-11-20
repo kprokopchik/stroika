@@ -243,6 +243,39 @@ body.pz-lock { overflow: hidden; }
 .pz-chip:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pz.is-full .pz-layers { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
 .pz-diagram .pz { height: min(78svh, 760px); }
+/* кликабельные элементы схем и карточка описания */
+.pz .hit { cursor: pointer; }
+.pz .hit:hover .hit-box { stroke: #147A82; stroke-width: 2; }
+.pz .hit.sel .hit-box { stroke: #147A82; stroke-width: 3; stroke-dasharray: none; }
+.pz .hit:focus { outline: none; }
+.pz .hit:focus-visible .hit-box { stroke: #147A82; stroke-width: 3; }
+.pz-pop {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; max-height: 60%; overflow: auto; overscroll-behavior: contain;
+  background: #FFFFFF; color: #1C2A2F; border: 1px solid #C9D3D2; border-radius: 12px; padding: 12px 14px 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .18); font-size: 14px; line-height: 1.45; z-index: 3; touch-action: pan-y;
+}
+.pz-pop h4 { margin: 0 34px 8px 0; font-size: 15.5px; display: grid; gap: 2px; }
+.pz-pop h4 .m { font: 500 12px var(--f-mono); color: #56686D; }
+.pz-pop-x {
+  position: absolute; top: 6px; right: 6px; width: 34px; height: 34px; border-radius: 8px; border: 1px solid #C9D3D2;
+  background: #fff; font-size: 20px; line-height: 1; cursor: pointer; color: #1C2A2F;
+}
+.pz-pop dl, .info-body dl { margin: 0; display: grid; gap: 2px; }
+.pz-pop dt, .info-body dt { font-weight: 700; font-size: 12.5px; color: #56686D; margin-top: 6px; }
+.pz-pop dd, .info-body dd { margin: 0; }
+.pz-pop ul, .info-body ul { margin: 2px 0 0; padding-left: 18px; display: grid; gap: 2px; }
+@media (max-width: 640px) { .pz-pop { max-height: 50%; font-size: 13.5px; } }
+@media (min-width: 900px) {
+  .pz-pop { left: auto; width: 400px; top: 52px; max-height: none; }
+}
+.infolist { display: grid; gap: 6px; }
+.infolist h3 { margin-top: 10px; }
+details.info { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; }
+details.info[open] { padding-bottom: 10px; }
+details.info summary { cursor: pointer; padding: 10px 0; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; justify-content: space-between; }
+details.info summary .m { font: 500 12px var(--f-mono); color: var(--muted); }
+.info-body { font-size: 14px; }
+.info-body dt { color: var(--muted); }
 /* легенда условных обозначений */
 .sym-legend { gap: 8px 16px; }
 .sym-legend span { gap: 4px; }

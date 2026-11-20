@@ -135,7 +135,7 @@ def crop_box(rect, pad=45):
 LAYER_SEL = {"furn": ".ly-furn,.ly-detail,.ly-rug", "dims": ".ly-dims"}
 
 
-def viewer(svg, cls="", overlay=False, note="", layers=None):
+def viewer(svg, cls="", overlay=False, note="", layers=None, pop=False):
     """Просмотр плана с зумом: щипок, перетаскивание, колесо, двойной тап, кнопки, полный экран.
     layers — [(ключ, подпись, включён)] для переключателей слоёв .lyr-ключ (furn — мебель)."""
     ov = ('<label class="pz-toggle"><input type="checkbox" data-pz-orig> План застройщика</label>' if overlay else "")
@@ -156,6 +156,7 @@ def viewer(svg, cls="", overlay=False, note="", layers=None):
     {ov}
   </div>
   {lay}
+  {'<div class="pz-pop" hidden><button type="button" class="pz-pop-x" aria-label="Закрыть описание">×</button><div class="pz-pop-body"></div></div>' if pop else ""}
 </div>
 <p class="pz-hint">{note or "Щипок двумя пальцами или колесо мыши — зум, перетаскивание — сдвиг, двойной тап — приблизить."}</p>
 </div>'''
@@ -187,14 +188,21 @@ def blocks_html(blocks):
         elif kind == "table":
             out.append(table_html(*b[1:]))
         elif kind == "diagram":
-            _, title, svg, note = b
+            _, title, svg, note, *rest = b
+            info = rest[0] if rest else None
             # место сверху под кнопки просмотра
             m = re.search(r'viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"', svg)
             if m:
                 x, y, w, h = map(float, m.groups())
                 pad = w * 0.13
                 svg = svg.replace(m.group(0), f'viewBox="{x:g} {y - pad:g} {w:g} {h + pad:g}"', 1)
-            out.append(f'<div class="dblock"><h3>{E(title)}</h3>{viewer(svg, "pz-diagram", note=note)}</div>')
+            lst = ""
+            if info:
+                items = "".join(
+                    f'<details class="info" id="info-{k}" data-key="{k}"><summary><b>{t}</b><span class="m">{sub}</span></summary>'
+                    f'<div class="info-body">{body}</div></details>' for k, t, sub, body in info)
+                lst = f'<div class="infolist"><h3>Все аппараты</h3>{items}</div>'
+            out.append(f'<div class="dblock"><h3>{E(title)}</h3>{viewer(svg, "pz-diagram", note=note, pop=bool(info))}{lst}</div>')
         elif kind == "p":
             out.append(f"<p>{b[1]}</p>")
         elif kind == "h2":
