@@ -207,6 +207,7 @@ def blocks_html(blocks):
                     svg = svg.replace(m.group(0), f'viewBox="{x:g} {y-w*.13:g} {w:g} {h+w*.13:g}"', 1)
                 sheets.append(f'<details class="circuit-sheet" data-circuit-panel="{E(c["id"])}"{" open" if i == 0 else ""}>'
                               f'<summary>{E(c["title"])}</summary>{viewer(svg, "pz-diagram pz-circuit", note="Одна цепь на листе. Цвета L/N/PE сохранены; остальные группы здесь не показаны.")}</details>')
+                sheets[-1] = "\n".join(line.rstrip() for line in sheets[-1].split("\n"))
             apparatus = "".join(f'<details class="info" id="info-{k}" data-key="{k}"><summary><b>{t}</b><span class="m">{sub}</span></summary>'
                                 f'<div class="info-body">{body}</div></details>' for k, t, sub, body in info)
             out.append(f'<section class="circuit-browser" data-circuit-browser><h3>{E(title)}</h3>'

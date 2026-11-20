@@ -47,7 +47,7 @@ def blocks_print(blocks):
             out.append(G.table_html(*b[1:]))
         elif kind == "circuit_browser":
             _, title, circuits, info = b
-            out.append(f'<h3>{E(title)}</h3><p class="sub">В печати: ввод, пример группы QF1 и ИБП. Остальные группы подключаются по тем же обозначениям из таблицы; отдельный лист каждой группы доступен на сайте.</p>')
+            out.append(f'<h3>{E(title)}</h3><p class="sub">В печати: ввод, управление разгрузкой, примеры обычной и отключаемых групп, кондиционер и ИБП. Отдельный лист каждой группы доступен на сайте; адреса клемм — в таблице.</p>')
             for c in circuits:
                 if c.get("print"):
                     out.append(f'<div class="pdiag"><h3>{E(c["title"])}</h3><div class="pd-fig">{c["svg"]}</div></div>')
