@@ -48,7 +48,8 @@ class Project:
         self.svg = {}
         for v in self.variants:
             plan = self.layout.VARIANTS[v["n"]]()
-            self.svg[v["n"]] = plan.render(self.layout.VIEWBOX, "__PLAN__", f"План, вариант {v['n']}")
+            self.svg[v["n"]] = plan.render(self.layout.VIEWBOX, "__PLAN__", f"План, вариант {v['n']}",
+                                           getattr(self.layout, "PLAN_IMG_BOX", None))
 
     def room(self, r, n):
         o = dict(r)
@@ -273,6 +274,8 @@ def pages_for(p, projects):
     heads = "".join(f'<th>Вариант {v["n"]}<br><span class="sub">{E(o.VARIANT_SHORT.get(v["n"], ""))}</span></th>' for v in p.variants)
     check = "".join(f'<tr><td>{a}</td><td class="num">{b}</td><td class="num">{c}</td><td class="num">{d}</td></tr>' for a, b, c, d in p.content.CHECK)
     facts = "".join(f'<span class="fact">{E(f)}</span>' for f in p.meta.get("facts", []))
+    plan_note = p.meta.get("plan_note", "Размеры на всех чертежах сняты с этого плана: стены обведены по картинке, масштаб подобран по площадям, 0,92 см на пиксель. Точность около ±5 см, перед заказом мебели комнаты стоит перемерить.")
+    pw, ph = p.meta.get("plan_size", (1206, 1618))
     body = f'''<header class="phead">
   <div class="eyebrow">Объект</div>
   <h1>{E(p.meta["title"])}</h1>
@@ -284,9 +287,9 @@ def pages_for(p, projects):
 <section class="block"><h2>Чем варианты отличаются</h2>
   <div class="tablewrap"><table><thead><tr><th></th>{heads}</tr></thead><tbody>{comp}</tbody></table></div></section>
 <section class="block"><h2>План застройщика</h2>
-  <p>Размеры на всех чертежах сняты с этого плана: стены обведены по картинке, масштаб подобран по площадям, 0,92 см на пиксель. Точность около ±5 см, перед заказом мебели комнаты стоит перемерить.</p>
+  <p>{E(plan_note)}</p>
   <div class="two">
-    <a class="card planimg" href="{asset(obj_dir, p.meta["plan_image"])}"><img src="{asset(obj_dir, p.meta["plan_image"])}" alt="План застройщика" loading="lazy" width="1206" height="1618"></a>
+    <a class="card planimg" href="{asset(obj_dir, p.meta["plan_image"])}"><img src="{asset(obj_dir, p.meta["plan_image"])}" alt="План застройщика" loading="lazy" width="{pw}" height="{ph}"></a>
     <div class="tablewrap"><table class="narrow"><thead><tr><th>Помещение</th><th>На плане, м²</th><th>Размер, см</th><th>По размерам, м²</th></tr></thead><tbody>{check}</tbody></table></div>
   </div>
 </section>'''
