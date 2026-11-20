@@ -52,7 +52,7 @@
     function center() { var r = size(); return { x: r.width / 2, y: r.height / 2 }; }
 
     root.addEventListener('pointerdown', function (e) {
-      if (e.target.closest('.pz-bar')) return;
+      if (e.target.closest('.pz-bar, .pz-layers')) return;
       root.setPointerCapture(e.pointerId);
       pts.set(e.pointerId, local(e));
       moved = false;
@@ -124,6 +124,14 @@
       full.setAttribute('aria-pressed', onf ? 'true' : 'false');
       full.textContent = onf ? 'Закрыть' : 'На весь экран';
       s = 1; tx = 0; ty = 0; apply(false);
+    });
+    // слои: мебель, розетки, трубы… — включаются и выключаются чекбоксами
+    root.querySelectorAll('[data-pz-layer]').forEach(function (cb) {
+      function sync() {
+        root.querySelectorAll(cb.getAttribute('data-pz-layer')).forEach(function (el) { el.style.display = cb.checked ? '' : 'none'; });
+      }
+      cb.addEventListener('change', sync);
+      sync();
     });
     var orig = root.querySelector('[data-pz-orig]');
     if (orig) orig.addEventListener('change', function () { root.classList.toggle('show-orig', orig.checked); });

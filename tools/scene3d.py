@@ -432,8 +432,11 @@ def split_fronts(x, y, w, h, front, z1, z2, mat, panel=55, gap=0.5, depth=1.8, h
 def merged_rects(rects):
     """Объединение прямоугольников стен без наложений: совпадающие грани дают чёрные полосы."""
     import numpy as np
-    X0, Y0 = -40, -60
-    g = np.zeros((1460, 960), dtype=bool)
+    X0 = min(-40, int(math.floor(min(r[0] for r in rects))) - 2)
+    Y0 = min(-60, int(math.floor(min(r[1] for r in rects))) - 2)
+    W = max(960, int(math.ceil(max(r[2] for r in rects))) - X0 + 2)
+    Hh = max(1460, int(math.ceil(max(r[3] for r in rects))) - Y0 + 2)
+    g = np.zeros((Hh, W), dtype=bool)
     for x1, y1, x2, y2 in rects:
         g[int(round(y1)) - Y0:int(round(y2)) - Y0, int(round(x1)) - X0:int(round(x2)) - X0] = True
     out, open_runs = [], {}
@@ -478,8 +481,11 @@ def build_arch(m, cut=None, ceiling=True):
             for i in range(n + 1):
                 xx = x1 + (x2 - x1) * i / n
                 box("frame", xx - 3, gy - 3, SILL, xx + 3, gy + 3, zt, "white")
-            # подоконник со стороны комнаты (комната ниже по y)
-            box("sill", x1, gy + 3, SILL - 3, x2, y2 + 6, SILL, "white")
+            # подоконник со стороны комнаты (по умолчанию комната ниже по y)
+            if w.get("room") == "top":
+                box("sill", x1, y1 - 6, SILL - 3, x2, gy - 3, SILL, "white")
+            else:
+                box("sill", x1, gy + 3, SILL - 3, x2, y2 + 6, SILL, "white")
         else:
             gx = (x1 + x2) / 2
             if not cut:
@@ -490,7 +496,10 @@ def build_arch(m, cut=None, ceiling=True):
             for i in range(n + 1):
                 yy = y1 + (y2 - y1) * i / n
                 box("frame", gx - 3, yy - 3, SILL, gx + 3, yy + 3, zt, "white")
-            box("sill", x1 - 6, y1, SILL - 3, gx - 3, y2, SILL, "white")
+            if w.get("room") == "right":
+                box("sill", gx + 3, y1, SILL - 3, x2 + 6, y2, SILL, "white")
+            else:
+                box("sill", x1 - 6, y1, SILL - 3, gx - 3, y2, SILL, "white")
     # двери: перемычки над проёмами и открытые полотна
     for d in [i for i in m.items if i["kind"] == "door"]:
         (hx, hy), (cx, cy), (ox, oy) = d["hinge"], d["closed"], d["opened"]
@@ -534,7 +543,9 @@ def build_arch(m, cut=None, ceiling=True):
         ob.data.materials.append(MATS["tile_floor" if f["fk"] == "wet" else "oak_floor"])
         link(ob)
     if ceiling:
-        box("ceiling", -30, -45, H, 900, 1385, H + 10, "ceiling")
+        xs = [w["x1"] for w in m.walls] + [w["x2"] for w in m.walls]
+        ys = [w["y1"] for w in m.walls] + [w["y2"] for w in m.walls]
+        box("ceiling", min(-30, min(xs)), min(-45, min(ys)), H, max(900, max(xs)), max(1385, max(ys)), H + 10, "ceiling")
 
 
 def wet_panels(panels):
@@ -799,7 +810,12 @@ def build_furniture(m, variant):
                 split_fronts(x + 1, y + 1, w - 2, h - 2, front_of(m.back(x, y, w, h)), 0, 200, "white_gloss", panel=30)
             elif k3 == "armchair":
                 box("armchair", x, y, 6, x + w, y + h, 42, "fabric_sand", bevel=4, seg=3, smooth=True)
-                box("armback", x + w - 16, y, 42, x + w, y + h, 85, "fabric_sand", bevel=5, seg=3, smooth=True)
+                ab = m.back(x, y, w, h)
+                bx1, by1, bx2, by2 = {"right": (x + w - 16, y, x + w, y + h), "left": (x, y, x + 16, y + h),
+                                      "top": (x, y, x + w, y + 16), "bottom": (x, y + h - 16, x + w, y + h)}[ab]
+                box("armback", bx1, by1, 42, bx2, by2, 85, "fabric_sand", bevel=5, seg=3, smooth=True)
+            elif k3 == "beanbag":
+                sphere("beanbag", x + w / 2, y + h / 2, 22, w / 2, h / 2, 22, "bed_yellow")
             elif cat == "store":
                 box("cabinet", x + 1, y + 1, 0, x + w - 1, y + h - 1, 85, "white")
             elif cat == "seat":
@@ -858,7 +874,7 @@ def build_furniture(m, variant):
         elif k == "tv":
             x, y, w, h = it["x"], it["y"], it["w"], it["h"]
             cx = x + w / 2
-            big = y > 1000
+            big = max(w, h) >= 110
             tw = 123 if big else 100
             th = 70 if big else 57
             z1 = 92 if big else 108
@@ -891,8 +907,15 @@ def build_furniture(m, variant):
             box("bath", x, y, 0, x + w, y + h, 58, "ceramic", bevel=2, seg=3)
             box("bathin", x + 7, y + 7, 18, x + w - 7, y + h - 7, 58.5, "water", bevel=6, seg=4, smooth=True)
             cyl("bathtap", x + 8, y + 8, 58, 72, 2, "steel")
-            # штора/стеклянная шторка на половину ванны
-            box("bathglass", x + w - 80, y + h - 1, 58, x + w - 2, y + h, 200, "glass")
+            # стеклянная шторка на половину ванны, с открытой стороны
+            gside = front_of(m.back(x, y, w, h))
+            if gside == "top":
+                box("bathglass", x + w - 80, y, 58, x + w - 2, y + 1, 200, "glass")
+            elif gside in ("left", "right") and h > w:
+                gx = x if gside == "left" else x + w - 1
+                box("bathglass", gx, y + h - 80, 58, gx + 1, y + h - 2, 200, "glass")
+            else:
+                box("bathglass", x + w - 80, y + h - 1, 58, x + w - 2, y + h, 200, "glass")
         elif k == "walkin":
             x, y, w, h = it["x"], it["y"], it["w"], it["h"]
             gx1, gy1, gx2, gy2 = it["glass"]
@@ -916,11 +939,27 @@ def build_furniture(m, variant):
         elif k == "wc":
             x, y, w, h, bkside = it["x"], it["y"], it["w"], it["h"], it["back"]
             cx = x + w / 2
+            cy = y + h / 2
             if bkside == "bottom":
                 box("install", x - 15, y + h - 18, 0, x + w + 15, y + h, 115, "tile_wall")
                 box("flush", cx - 11, y + h - 18.6, 95, cx + 11, y + h - 18, 110, "white_gloss")
                 sphere("bowl", cx, y + (h - 18) / 2 + 3, 40, w / 2, (h - 18) / 2 + 4, 14, "ceramic")
                 box("bowlback", cx - w / 2 + 3, y + h - 26, 30, cx + w / 2 - 3, y + h - 18, 48, "ceramic", bevel=3, seg=3, smooth=True)
+            elif bkside == "right":
+                box("install", x + w - 18, y - 12, 0, x + w, y + h + 12, 115, "tile_wall")
+                box("flush", x + w - 18.6, cy - 11, 95, x + w - 18, cy + 11, 110, "white_gloss")
+                sphere("bowl", x + (w - 18) / 2 - 3, cy, 40, (w - 18) / 2 + 4, h / 2, 14, "ceramic")
+                box("bowlback", x + w - 26, cy - h / 2 + 3, 30, x + w - 18, cy + h / 2 - 3, 48, "ceramic", bevel=3, seg=3, smooth=True)
+            elif bkside == "left":
+                box("install", x, y - 12, 0, x + 18, y + h + 12, 115, "tile_wall")
+                box("flush", x + 18, cy - 11, 95, x + 18.6, cy + 11, 110, "white_gloss")
+                sphere("bowl", x + 18 + (w - 18) / 2 + 3, cy, 40, (w - 18) / 2 + 4, h / 2, 14, "ceramic")
+                box("bowlback", x + 18, cy - h / 2 + 3, 30, x + 26, cy + h / 2 - 3, 48, "ceramic", bevel=3, seg=3, smooth=True)
+            elif bkside == "top":
+                box("install", x - 15, y, 0, x + w + 15, y + 18, 115, "tile_wall")
+                box("flush", cx - 11, y + 18, 95, cx + 11, y + 18.6, 110, "white_gloss")
+                sphere("bowl", cx, y + 18 + (h - 18) / 2 - 3, 40, w / 2, (h - 18) / 2 + 4, 14, "ceramic")
+                box("bowlback", cx - w / 2 + 3, y + 18, 30, cx + w / 2 - 3, y + 26, 48, "ceramic", bevel=3, seg=3, smooth=True)
         elif k == "basin":
             x, y, w, h, bkside = it["x"], it["y"], it["w"], it["h"], it["back"]
             box("vanity", x, y, 50, x + w, y + h, 84, "oak")
@@ -1135,24 +1174,28 @@ VARIANT_ITEMS = []
 
 
 def exterior():
-    # земля далеко внизу (этаж ~6) и соседние дома
-    box("ground", -6000, -6000, -2200, 8000, 8000, -2190, "ground")
-    box("road", 1300, -6000, -2189, 2000, 8000, -2188, "asphalt")
-    box("road2", -6000, -1800, -2189, 8000, -1200, -2188, "asphalt")
-    blocks = [
+    """Земля, дороги, соседние дома и деревья. Объект может задать свои в scene_cfg.py:
+    GROUND_Z (см), ROADS, BLOCKS, TREES (область и число)."""
+    gz = getattr(CFG, "GROUND_Z", -2200)
+    box("ground", -60000, -60000, gz, 60000, 60000, gz + 10, "ground")
+    roads = getattr(CFG, "ROADS", [(1300, -6000, 2000, 8000), (-6000, -1800, 8000, -1200)])
+    for x1, y1, x2, y2 in roads:
+        box("road", x1, y1, gz + 11, x2, y2, gz + 12, "asphalt")
+    blocks = getattr(CFG, "BLOCKS", [
         (2600, -400, 3800, 1800, 3800, "facade1"),
         (2600, 2300, 3700, 3800, 2600, "facade2"),
         (-800, -3600, 1500, -2600, 3400, "facade2"),
         (1900, -3800, 3300, -2700, 2400, "facade1"),
         (-3200, -3400, -1500, -2400, 4200, "facade1"),
-    ]
+    ])
     for x1, y1, x2, y2, hgt, mt in blocks:
-        box("building", x1, y1, -2190, x2, y2, hgt - 2190, mt)
-    for i in range(14):
-        tx = rnd.uniform(1050, 2400)
-        ty = rnd.uniform(-1500, 2600)
-        cyl("trunk", tx, ty, -2190, -1700, 12, "oak_dark")
-        sphere("crown", tx, ty, -1550, rnd.uniform(160, 240), rnd.uniform(160, 240), rnd.uniform(200, 280), "tree")
+        box("building", x1, y1, gz + 10, x2, y2, hgt + gz + 10, mt)
+    (tx1, tx2, ty1, ty2), ntrees = getattr(CFG, "TREES", ((1050, 2400, -1500, 2600), 14))
+    for i in range(ntrees):
+        tx = rnd.uniform(tx1, tx2)
+        ty = rnd.uniform(ty1, ty2)
+        cyl("trunk", tx, ty, gz + 10, gz + 500, 12, "oak_dark")
+        sphere("crown", tx, ty, gz + 650, rnd.uniform(160, 240), rnd.uniform(160, 240), rnd.uniform(200, 280), "tree")
 
 
 def world(strength=1.0, elev=28, rot=-115, sun_e=3.2):
@@ -1184,9 +1227,15 @@ def portals(m):
     for w in m.windows:
         x1, y1, x2, y2 = w["x1"], w["y1"], w["x2"], w["y2"]
         zc = (SILL + HEAD) / 2
+        room = w.get("room")
         if (x2 - x1) > (y2 - y1):
-            # окно в верхней стене, комната ниже (y больше): свет внутрь по -Y blender → +y плана
-            area_light("portal", (x1 + x2) / 2, y2 + 1, zc, x2 - x1, HEAD - SILL, 1, portal=True, rot=(math.radians(-90), 0, 0))
+            if room == "top":
+                area_light("portal", (x1 + x2) / 2, y1 - 1, zc, x2 - x1, HEAD - SILL, 1, portal=True, rot=(math.radians(90), 0, 0))
+            else:
+                # окно в верхней стене, комната ниже (y больше): свет внутрь по -Y blender → +y плана
+                area_light("portal", (x1 + x2) / 2, y2 + 1, zc, x2 - x1, HEAD - SILL, 1, portal=True, rot=(math.radians(-90), 0, 0))
+        elif room == "right":
+            area_light("portal", x2 + 1, (y1 + y2) / 2, zc, HEAD - SILL, y2 - y1, 1, portal=True, rot=(0, math.radians(-90), 0))
         else:
             area_light("portal", x1 - 1, (y1 + y2) / 2, zc, HEAD - SILL, y2 - y1, 1, portal=True, rot=(0, math.radians(90), 0))
 
@@ -1261,10 +1310,10 @@ def build_scene(variant, interior, cut):
     wet_panels(CFG.wet_panels(variant))
     build_furniture(m, variant)
     if interior:
-        world(strength=0.9)
+        world(strength=0.9, rot=getattr(CFG, "SUN_ROT", -115))
         exterior()
     else:
-        world(strength=0.45, elev=55, rot=-140, sun_e=4.0)
+        world(strength=0.45, elev=55, rot=getattr(CFG, "SUN_ROT_DOLL", -140), sun_e=4.0)
         principled("studio", (0.70, 0.70, 0.68), 0.9)
         box("studio", -3000, -3000, -2, 4000, 4000, -1, "studio")
     if interior:

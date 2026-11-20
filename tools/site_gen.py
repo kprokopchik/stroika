@@ -41,6 +41,8 @@ class Project:
         self.obj = load_module(folder / "object.py", f"obj_{slug}")
         self.layout = load_module(folder / "layout.py", f"layout_{slug}")
         self.content = load_module(folder / "content.py", f"content_{slug}")
+        # необязательные инженерные разделы: build(n) → {id раздела: данные}
+        eng = load_module(folder / "eng.py", f"eng_{slug}") if (folder / "eng.py").exists() else None
         sys.path.remove(str(folder))
         self.meta = self.obj.OBJECT
         self.slug = self.meta["slug"]
@@ -48,7 +50,16 @@ class Project:
         self.svg = {}
         for v in self.variants:
             plan = self.layout.VARIANTS[v["n"]]()
-            self.svg[v["n"]] = plan.render(self.layout.VIEWBOX, "__PLAN__", f"План, вариант {v['n']}")
+            self.svg[v["n"]] = plan.render(self.layout.VIEWBOX, "__PLAN__", f"План, вариант {v['n']}",
+                                           getattr(self.layout, "PLAN_IMG_BOX", None))
+        self.eng = {v["n"]: (eng.build(v["n"]) if eng else {}) for v in self.variants}
+
+    def sec(self, s, n):
+        """Данные раздела s в варианте n или None, если раздел ещё черновик."""
+        return self.eng.get(n, {}).get(s["id"])
+
+    def ready_variants(self, s):
+        return [v["n"] for v in self.variants if self.sec(s, v["n"])]
 
     def room(self, r, n):
         o = dict(r)
@@ -121,9 +132,19 @@ def crop_box(rect, pad=45):
     return (x1 - pad, y1 - pad, x2 - x1 + 2 * pad, y2 - y1 + 2 * pad)
 
 
-def viewer(svg, cls="", overlay=False, note=""):
-    """Просмотр плана с зумом: щипок, перетаскивание, колесо, двойной тап, кнопки, полный экран."""
+LAYER_SEL = {"furn": ".ly-furn,.ly-detail,.ly-rug", "dims": ".ly-dims"}
+
+
+def viewer(svg, cls="", overlay=False, note="", layers=None):
+    """Просмотр плана с зумом: щипок, перетаскивание, колесо, двойной тап, кнопки, полный экран.
+    layers — [(ключ, подпись, включён)] для переключателей слоёв .lyr-ключ (furn — мебель)."""
     ov = ('<label class="pz-toggle"><input type="checkbox" data-pz-orig> План застройщика</label>' if overlay else "")
+    lay = ""
+    if layers:
+        chips_ = "".join(
+            f'<label class="pz-chip"><input type="checkbox" data-pz-layer="{E(LAYER_SEL.get(k, ".lyr-" + k))}"{" checked" if on else ""}> {E(t)}</label>'
+            for k, t, on in layers)
+        lay = f'<div class="pz-layers" role="group" aria-label="Слои плана">{chips_}</div>'
     return f'''<div class="pzw {cls}">
 <div class="pz" data-pz>
   <div class="pz-stage">{svg}</div>
@@ -134,9 +155,51 @@ def viewer(svg, cls="", overlay=False, note=""):
     <button type="button" data-pz-full aria-pressed="false">На весь экран</button>
     {ov}
   </div>
+  {lay}
 </div>
 <p class="pz-hint">{note or "Щипок двумя пальцами или колесо мыши — зум, перетаскивание — сдвиг, двойной тап — приблизить."}</p>
 </div>'''
+
+
+def with_overlay(svg, overlay):
+    return svg.replace("</svg>", f'<g class="eng">{overlay}</g></svg>') if overlay else svg
+
+
+def legend_html(items):
+    return '<div class="legend sym-legend" aria-label="Обозначения">' + "".join(f"<span>{ic}{E(t)}</span>" for ic, t in items) + "</div>"
+
+
+def table_html(title, head, rows, note=None):
+    th = "".join(f"<th>{h}</th>" for h in head)
+    tr = "".join("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>" for r in rows)
+    h = f"<h3>{E(title)}</h3>" if title else ""
+    n = f'<p class="sub">{note}</p>' if note else ""
+    return f'<div class="tblock">{h}<div class="tablewrap"><table class="c{len(head)}">{f"<thead><tr>{th}</tr></thead>"}<tbody>{tr}</tbody></table></div>{n}</div>'
+
+
+def blocks_html(blocks):
+    """Блоки раздела: cards, table, diagram, p, h2."""
+    out = []
+    for b in blocks:
+        kind = b[0]
+        if kind == "cards":
+            out.append('<div class="ecards">' + "".join(note_card(t, m, lis) for t, m, lis in b[1]) + "</div>")
+        elif kind == "table":
+            out.append(table_html(*b[1:]))
+        elif kind == "diagram":
+            _, title, svg, note = b
+            # место сверху под кнопки просмотра
+            m = re.search(r'viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"', svg)
+            if m:
+                x, y, w, h = map(float, m.groups())
+                pad = w * 0.13
+                svg = svg.replace(m.group(0), f'viewBox="{x:g} {y - pad:g} {w:g} {h + pad:g}"', 1)
+            out.append(f'<div class="dblock"><h3>{E(title)}</h3>{viewer(svg, "pz-diagram", note=note)}</div>')
+        elif kind == "p":
+            out.append(f"<p>{b[1]}</p>")
+        elif kind == "h2":
+            out.append(f"<h2>{E(b[1])}</h2>")
+    return f'<section class="block eblocks">{"".join(out)}</section>' if out else ""
 
 
 def chips(lst):
@@ -201,7 +264,7 @@ def nav_tree(projects, page):
                 sp = f"{vp}/{s['id']}"
                 kids = [f"<li>{a(sp + '/' + x['id'], E(x['name']))}</li>" for x in s.get("extra", [])]
                 kids += [f"<li>{a(sp + '/' + r['id'], E(p.room(r, n)['name']))}</li>" for r in p.obj.ROOMS]
-                badge = ' <span class="badge">в работе</span>' if s.get("status") == "draft" else ""
+                badge = ' <span class="badge">в работе</span>' if not p.sec(s, n) else ""
                 secs.append(node(sp, E(s["name"]) + badge, kids))
             kids = [f"<li>{a(vp + '/plan', 'План квартиры')}</li>", f"<li>{a(vp + '/3d', '3D-модель')}</li>",
                     group("Комнаты", rooms, vp + "/komnaty")] + secs
@@ -273,6 +336,8 @@ def pages_for(p, projects):
     heads = "".join(f'<th>Вариант {v["n"]}<br><span class="sub">{E(o.VARIANT_SHORT.get(v["n"], ""))}</span></th>' for v in p.variants)
     check = "".join(f'<tr><td>{a}</td><td class="num">{b}</td><td class="num">{c}</td><td class="num">{d}</td></tr>' for a, b, c, d in p.content.CHECK)
     facts = "".join(f'<span class="fact">{E(f)}</span>' for f in p.meta.get("facts", []))
+    plan_note = p.meta.get("plan_note", "Размеры на всех чертежах сняты с этого плана: стены обведены по картинке, масштаб подобран по площадям, 0,92 см на пиксель. Точность около ±5 см, перед заказом мебели комнаты стоит перемерить.")
+    pw, ph = p.meta.get("plan_size", (1206, 1618))
     body = f'''<header class="phead">
   <div class="eyebrow">Объект</div>
   <h1>{E(p.meta["title"])}</h1>
@@ -284,9 +349,9 @@ def pages_for(p, projects):
 <section class="block"><h2>Чем варианты отличаются</h2>
   <div class="tablewrap"><table><thead><tr><th></th>{heads}</tr></thead><tbody>{comp}</tbody></table></div></section>
 <section class="block"><h2>План застройщика</h2>
-  <p>Размеры на всех чертежах сняты с этого плана: стены обведены по картинке, масштаб подобран по площадям, 0,92 см на пиксель. Точность около ±5 см, перед заказом мебели комнаты стоит перемерить.</p>
+  <p>{E(plan_note)}</p>
   <div class="two">
-    <a class="card planimg" href="{asset(obj_dir, p.meta["plan_image"])}"><img src="{asset(obj_dir, p.meta["plan_image"])}" alt="План застройщика" loading="lazy" width="1206" height="1618"></a>
+    <a class="card planimg" href="{asset(obj_dir, p.meta["plan_image"])}"><img src="{asset(obj_dir, p.meta["plan_image"])}" alt="План застройщика" loading="lazy" width="{pw}" height="{ph}"></a>
     <div class="tablewrap"><table class="narrow"><thead><tr><th>Помещение</th><th>На плане, м²</th><th>Размер, см</th><th>По размерам, м²</th></tr></thead><tbody>{check}</tbody></table></div>
   </div>
 </section>'''
@@ -311,7 +376,7 @@ def pages_for(p, projects):
   <h3>{E(rr["name"])}<span class="m">{E(rr["area"])}</span></h3><p>{E(first)}</p></a>''')
         sec_cards = []
         for s in o.SECTIONS:
-            badge = '<span class="badge">в работе</span>' if s.get("status") == "draft" else ""
+            badge = '<span class="badge">в работе</span>' if not p.sec(s, n) else ""
             sec_cards.append(f'''<a class="card rcard" href="{rel(vdir, f"{vdir}/{s['id']}/index.html")}">
   <h3>{E(s["name"])}{badge}</h3><p>{E(s["about"])}</p></a>''')
         gal = gallery_html(p, vdir, n, v["gallery"])
@@ -388,28 +453,67 @@ def pages_for(p, projects):
         for s in o.SECTIONS:
             sdir = f"{vdir}/{s['id']}"
             s_crumb = (s["name"], sdir)
-            draft = s.get("status") == "draft"
+            D = p.sec(s, n)
             items = "".join(f"<li>{E(x)}</li>" for x in s.get("plan_items", []))
-            status = f'''<div class="card draft"><h3>Раздел в работе</h3><p>Пока на плане только расстановка как подложка. Здесь появятся:</p><ul>{items}</ul></div>''' if draft else ""
+            ready = p.ready_variants(s)
+
+            def elsewhere(page_dir, s=s, ready=ready):
+                lis = "".join(f'<li>{link(page_dir, f"{obj_dir}/v{m}/{s["id"]}", f"Вариант {m}: {E(s["name"]).lower()}")}</li>' for m in ready)
+                return f"<p>Уже проработано:</p><ul>{lis}</ul>" if lis else ""
+
+            def status(page_dir, items=items, elsewhere=elsewhere):
+                return f'''<div class="card draft"><h3>Раздел в работе</h3><p>Пока на плане только расстановка как подложка. Здесь появятся:</p><ul>{items}</ul>{elsewhere(page_dir)}</div>'''
             extra = "".join(f'<a class="card rcard" href="{rel(sdir, f"{sdir}/{x["id"]}/index.html")}"><h3>{E(x["name"])}</h3><p>{E(x["about"])}</p></a>' for x in s.get("extra", []))
             rooms_l = "".join(f'<li>{link(sdir, f"{sdir}/{r["id"]}", E(p.room(r, n)["name"]))}</li>' for r in o.ROOMS)
-            body = f'''<header class="phead compact"><div class="eyebrow">{vname} · раздел</div><h1>{E(s["name"])}</h1><p class="lede">{E(s["about"])}</p></header>
-<div class="underlay">{viewer(svg_with(svg, asset(sdir, p.meta["plan_image"])), "pz-main")}</div>
-<section class="block two-col">{status}<div class="card"><h3>По комнатам</h3><ul class="plain cols">{rooms_l}</ul></div></section>
+            plan_svg = svg_with(svg, asset(sdir, p.meta["plan_image"]))
+            if D:
+                body = f'''<header class="phead compact"><div class="eyebrow">{vname} · раздел</div><h1>{E(s["name"])}</h1><p class="lede">{E(D["lede"])}</p></header>
+<div class="underlay">{viewer(with_overlay(plan_svg, D["overlay"]), "pz-main", layers=D["layers"], note="Кнопки внизу включают и выключают слои. Щипок или колесо мыши — зум, двойной тап — приблизить.")}</div>
+{legend_html(D["legend"])}
+{blocks_html(D["blocks"])}
+<section class="block"><h2>Подробнее</h2><div class="rcards">{extra}</div><div class="card"><h3>По комнатам</h3><ul class="plain cols">{rooms_l}</ul></div></section>'''
+            else:
+                body = f'''<header class="phead compact"><div class="eyebrow">{vname} · раздел</div><h1>{E(s["name"])}</h1><p class="lede">{E(s["about"])}</p></header>
+<div class="underlay">{viewer(plan_svg, "pz-main")}</div>
+<section class="block two-col">{status(sdir)}<div class="card"><h3>По комнатам</h3><ul class="plain cols">{rooms_l}</ul></div></section>
 <section class="block"><div class="rcards">{extra}</div></section>'''
             pages.append(Page(sdir, f"{s['name']}, {vname.lower()}", [home, obj_crumb, v_crumb, s_crumb], body, "section"))
             for x in s.get("extra", []):
                 xdir = f"{sdir}/{x['id']}"
-                xi = "".join(f"<li>{E(t)}</li>" for t in x.get("items", []))
-                body = f'''<header class="phead compact"><div class="eyebrow">{vname} · {E(s["name"])}</div><h1>{E(x["name"])}</h1><p class="lede">{E(x["about"])}</p></header>
-<div class="card draft"><h3>Страница в работе</h3><p>Здесь появятся:</p><ul>{xi}</ul></div>'''
+                X = D["extras"].get(x["id"]) if D else None
+                if X:
+                    body = f'''<header class="phead compact"><div class="eyebrow">{vname} · {E(s["name"])}</div><h1>{E(x["name"])}</h1><p class="lede">{E(X["lede"])}</p></header>
+{blocks_html(X["blocks"])}
+<nav class="pager" aria-label="Раздел">{link(xdir, sdir, "← " + E(s["name"]) + " по всей квартире")}</nav>'''
+                else:
+                    xi = "".join(f"<li>{E(t)}</li>" for t in x.get("items", []))
+                    body = f'''<header class="phead compact"><div class="eyebrow">{vname} · {E(s["name"])}</div><h1>{E(x["name"])}</h1><p class="lede">{E(x["about"])}</p></header>
+<div class="card draft"><h3>Страница в работе</h3><p>Здесь появятся:</p><ul>{xi}</ul>{elsewhere(xdir)}</div>'''
                 pages.append(Page(xdir, f"{x['name']}, {vname.lower()}", [home, obj_crumb, v_crumb, s_crumb, (x["name"], xdir)], body, "extra"))
-            for r in o.ROOMS:
+            for i, r in enumerate(o.ROOMS):
                 rr = p.room(r, n)
                 xdir = f"{sdir}/{r['id']}"
-                body = f'''<header class="phead compact"><div class="eyebrow">{vname} · {E(s["name"])}</div><h1>{E(rr["name"])}<span class="m">{E(rr["area"])}</span></h1></header>
-<div class="underlay">{viewer(svg_with(svg, asset(xdir, p.meta["plan_image"]), crop_box(rr["rect"])), "pz-room")}</div>
-<section class="block two-col">{status}<div class="card"><h3>Эта комната</h3><ul class="plain"><li>{link(xdir, f"{vdir}/komnaty/{r['id']}", "Расстановка и заметки")}</li><li>{link(xdir, sdir, E(s["name"]) + " по всей квартире")}</li></ul></div></section>'''
+                room_svg = svg_with(svg, asset(xdir, p.meta["plan_image"]), crop_box(rr["rect"]))
+                here = f'''<div class="card"><h3>Эта комната</h3><ul class="plain"><li>{link(xdir, f"{vdir}/komnaty/{r['id']}", "Расстановка и заметки")}</li><li>{link(xdir, sdir, E(s["name"]) + " по всей квартире")}</li></ul></div>'''
+                if D:
+                    rb = D["rooms"].get(r["id"], [])
+                    empty = "" if rb else '<p class="sub">В этой комнате точек раздела нет.</p>'
+                    prev_r, next_r = o.ROOMS[i - 1], o.ROOMS[(i + 1) % len(o.ROOMS)]
+                    pager = f'''<nav class="pager" aria-label="Соседние комнаты">
+  {link(xdir, f"{sdir}/{prev_r['id']}", "← " + E(p.room(prev_r, n)["name"]))}
+  {link(xdir, f"{sdir}/{next_r['id']}", E(p.room(next_r, n)["name"]) + " →")}
+</nav>'''
+                    body = f'''<header class="phead compact"><div class="eyebrow">{vname} · {E(s["name"])}</div><h1>{E(rr["name"])}<span class="m">{E(rr["area"])}</span></h1></header>
+<div class="underlay">{viewer(with_overlay(room_svg, D["overlay"]), "pz-room", layers=D["layers"])}</div>
+{legend_html(D["legend"])}
+{blocks_html(rb)}
+{empty}
+<section class="block">{here}</section>
+{pager}'''
+                else:
+                    body = f'''<header class="phead compact"><div class="eyebrow">{vname} · {E(s["name"])}</div><h1>{E(rr["name"])}<span class="m">{E(rr["area"])}</span></h1></header>
+<div class="underlay">{viewer(room_svg, "pz-room")}</div>
+<section class="block two-col">{status(xdir)}{here}</section>'''
                 pages.append(Page(xdir, f"{s['name']}: {rr['name']}", [home, obj_crumb, v_crumb, s_crumb, (rr["name"], xdir)], body, "section"))
     return pages
 

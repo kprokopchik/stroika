@@ -230,9 +230,41 @@ body.pz-lock { overflow: hidden; }
 @media (max-width: 640px) {
   .pz-bar button[data-pz-in], .pz-bar button[data-pz-out] { display: none; }
 }
+/* слои плана */
+.pz-layers {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none;
+}
+.pz-chip {
+  pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font: 600 12.5px var(--f-body); color: #1C2A2F; background: rgba(255, 255, 255, .94);
+  border: 1px solid #C9D3D2; border-radius: 999px; padding: 5px 10px 5px 8px; min-height: 32px; box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+.pz-chip input { width: 15px; height: 15px; margin: 0; accent-color: #147A82; }
+.pz-chip:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pz.is-full .pz-layers { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+.pz-diagram .pz { height: min(78svh, 760px); }
+/* легенда условных обозначений */
+.sym-legend { gap: 8px 16px; }
+.sym-legend span { gap: 4px; }
+.sym-legend .sym { flex: 0 0 auto; background: #fff; border-radius: 6px; border: 1px solid var(--line); }
+/* блоки инженерных разделов */
+.eblocks { gap: 22px; }
+.ecards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.tblock, .dblock { display: grid; gap: 8px; min-width: 0; }
+.tblock h3, .dblock h3 { font-size: 17px; margin: 0; }
+.tblock .sub { margin: 0; max-width: 80ch; }
+.tblock table { min-width: 560px; }
+.tblock table.c2, .tblock table.c3 { min-width: 0; }
+.tblock table.c4 { min-width: 460px; }
+@media (max-width: 640px) {
+  .pz-layers { gap: 4px; left: 6px; right: 6px; bottom: 6px; }
+  .pz-chip { font-size: 12px; padding: 3px 8px 3px 6px; min-height: 28px; gap: 4px; }
+  .pz-chip input { width: 13px; height: 13px; }
+}
 /* подложка разделов: расстановка бледнее */
 .underlay .ly-furn, .underlay .ly-detail, .underlay .ly-rug { opacity: .22; }
 .underlay .ly-labels { opacity: .45; }
+.underlay .ly-dims { opacity: .3; }
 
 /* 3D */
 .viewer3d { position: relative; height: calc(100svh - var(--top) - 140px); min-height: 380px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #E9ECEB; }

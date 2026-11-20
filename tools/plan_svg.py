@@ -373,6 +373,9 @@ class Plan:
         elif back == "top":
             self.rect(x, y, w, 16, f, s, 1.2, 2)
             self.add("furn", f'<ellipse cx="{x + w / 2:.1f}" cy="{y + 16 + (h - 16) / 2 - 2:.1f}" rx="{w / 2 - 1:.1f}" ry="{(h - 16) / 2 + 2:.1f}" fill="#FFFFFF" stroke="{s}" stroke-width="1.3"/>')
+        elif back == "right":
+            self.rect(x + w - 16, y, 16, h, f, s, 1.2, 2)
+            self.add("furn", f'<ellipse cx="{x + (w - 16) / 2 + 2:.1f}" cy="{y + h / 2:.1f}" rx="{(w - 16) / 2 + 2:.1f}" ry="{h / 2 - 1:.1f}" fill="#FFFFFF" stroke="{s}" stroke-width="1.3"/>')
 
     def basin(self, x, y, w, h, back, label=None, fs=12):
         self.rec("basin", x=x, y=y, w=w, h=h, back=back)
@@ -448,8 +451,10 @@ class Plan:
     def demo(self, x1, y1, x2, y2):
         self.rect(x1, y1, x2 - x1, y2 - y1, "#FFFFFF", DEMO, 1.6, 0, "rug", dash="5 3")
 
-    def window(self, x1, y1, x2, y2):
-        self.rec("window", x1=x1, y1=y1, x2=x2, y2=y2)
+    def window(self, x1, y1, x2, y2, room=None):
+        """room — сторона, где комната: bottom/top для окна в горизонтальной стене, left/right — в вертикальной.
+        По умолчанию bottom и left, как в квартире 95."""
+        self.rec("window", x1=x1, y1=y1, x2=x2, y2=y2, room=room)
         self.rect(x1, y1, x2 - x1, y2 - y1, "#FFFFFF", WALL, 1, 0, "openings")
         if x2 - x1 > y2 - y1:
             for f in (0.38, 0.62):
@@ -514,13 +519,15 @@ class Plan:
         self.text(x, y - fs * 0.55, name, fs=fs, weight=700, fill="#1D2A30", layer="labels")
         self.text(x, y + fs * 0.62, area, fs=fs * 0.82, weight=500, fill="#4A5960", layer="labels", font=MONO)
 
-    def render(self, vb, overlay_href=None, title=""):
+    def render(self, vb, overlay_href=None, title="", img_box=None):
+        """img_box — где лежит план застройщика в сантиметрах: (x, y, ширина, высота)."""
         x, y, w, h = vb
         parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x} {y} {w} {h}" role="img" aria-label="{esc(title)}">',
                  f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="#FFFFFF"/>']
         for k in ["floor", "rug", "furn", "detail", "walls", "openings", "dims", "labels"]:
             parts.append(f'<g class="ly-{k}">' + "".join(self.L[k]) + "</g>")
         if overlay_href:
-            parts.append(f'<image class="orig" href="{overlay_href}" x="{-166 * 0.92:.2f}" y="{-70 * 0.92:.2f}" width="{1206 * 0.92:.2f}" height="{1618 * 0.92:.2f}" preserveAspectRatio="none"/>')
+            ix, iy, iw, ih = img_box or (-166 * 0.92, -70 * 0.92, 1206 * 0.92, 1618 * 0.92)
+            parts.append(f'<image class="orig" href="{overlay_href}" x="{ix:.2f}" y="{iy:.2f}" width="{iw:.2f}" height="{ih:.2f}" preserveAspectRatio="none"/>')
         parts.append("</svg>")
         return "".join(parts)
