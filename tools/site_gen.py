@@ -197,6 +197,7 @@ def blocks_html(blocks):
         elif kind == "diagram":
             _, title, svg, note, *rest = b
             info = rest[0] if rest else None
+            layers = rest[1] if len(rest) > 1 else None
             # место сверху под кнопки просмотра
             m = re.search(r'viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"', svg)
             if m:
@@ -209,7 +210,7 @@ def blocks_html(blocks):
                     f'<details class="info" id="info-{k}" data-key="{k}"><summary><b>{t}</b><span class="m">{sub}</span></summary>'
                     f'<div class="info-body">{body}</div></details>' for k, t, sub, body in info)
                 lst = f'<div class="infolist"><h3>Все аппараты</h3>{items}</div>'
-            out.append(f'<div class="dblock"><h3>{E(title)}</h3>{viewer(svg, "pz-diagram", note=note, pop=bool(info))}{lst}</div>')
+            out.append(f'<div class="dblock"><h3>{E(title)}</h3>{viewer(svg, "pz-diagram", note=note, layers=layers, pop=bool(info))}{lst}</div>')
         elif kind == "p":
             out.append(f"<p>{b[1]}</p>")
         elif kind == "h2":
