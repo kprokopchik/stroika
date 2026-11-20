@@ -52,7 +52,7 @@
     function center() { var r = size(); return { x: r.width / 2, y: r.height / 2 }; }
 
     root.addEventListener('pointerdown', function (e) {
-      if (e.target.closest('.pz-bar, .pz-layers')) return;
+      if (e.target.closest('.pz-bar, .pz-layers, .pz-pop')) return;
       root.setPointerCapture(e.pointerId);
       pts.set(e.pointerId, local(e));
       moved = false;
@@ -92,7 +92,13 @@
         gesture = null;
         // двойной тап / двойной клик: приблизить или вернуть
         var now = Date.now();
-        if (!moved && e.type === 'pointerup') {
+        // тап по элементу схемы с описанием (аппарат щита) — показать карточку
+        var hit = !moved && e.type === 'pointerup' && document.elementFromPoint(e.clientX, e.clientY);
+        var tgt = hit && hit.closest && hit.closest('[data-info]');
+        if (tgt && root.contains(tgt)) {
+          showInfo(tgt.getAttribute('data-info'));
+          lastTap = 0;
+        } else if (!moved && e.type === 'pointerup') {
           if (now - lastTap < 320) {
             if (s > 1.5) { s = 1; tx = 0; ty = 0; apply(false); } else { zoomAt(2.6, p.x, p.y, false); }
             lastTap = 0;
@@ -133,6 +139,37 @@
       cb.addEventListener('change', sync);
       sync();
     });
+    // карточка описания элемента схемы
+    var pop = root.querySelector('.pz-pop');
+    function showInfo(key) {
+      var src = document.getElementById('info-' + key);
+      if (!pop || !src) return;
+      root.querySelectorAll('[data-info].sel').forEach(function (n) { n.classList.remove('sel'); });
+      var el = root.querySelector('[data-info="' + key + '"]');
+      if (el) el.classList.add('sel');
+      pop.querySelector('.pz-pop-body').innerHTML = '<h4>' + src.querySelector('summary').innerHTML + '</h4>' + src.querySelector('.info-body').innerHTML;
+      pop.hidden = false;
+      pop.scrollTop = 0;
+    }
+    if (pop) {
+      pop.querySelector('.pz-pop-x').addEventListener('click', function () {
+        pop.hidden = true;
+        root.querySelectorAll('[data-info].sel').forEach(function (n) { n.classList.remove('sel'); });
+      });
+      root.addEventListener('keydown', function (e) {
+        var t = e.target.closest && e.target.closest('[data-info]');
+        if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showInfo(t.getAttribute('data-info')); }
+      });
+      var wrap = root.closest('.dblock');
+      if (wrap) wrap.querySelectorAll('details.info').forEach(function (d) {
+        d.addEventListener('toggle', function () {
+          if (!d.open) return;
+          root.querySelectorAll('[data-info].sel').forEach(function (n) { n.classList.remove('sel'); });
+          var el = root.querySelector('[data-info="' + d.getAttribute('data-key') + '"]');
+          if (el) el.classList.add('sel');
+        });
+      });
+    }
     var orig = root.querySelector('[data-pz-orig]');
     if (orig) orig.addEventListener('change', function () { root.classList.toggle('show-orig', orig.checked); });
     document.addEventListener('keydown', function (e) {

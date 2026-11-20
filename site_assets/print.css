@@ -1,0 +1,64 @@
+/* Листы для PDF: планы A3 в масштабе, пояснения и схемы A4. Используется tools/make_pdf.py. */
+@page a3 { size: A3 portrait; margin: 12mm 12mm 14mm; }
+@page a4 { size: A4 portrait; margin: 12mm 12mm 14mm; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; font: 9.5pt/1.4 "Golos Text", Arial, sans-serif; color: #1C2A2F; background: #fff; }
+.sheet { break-after: page; }
+.sheet:last-child { break-after: auto; }
+.sheet.a3 { page: a3; }
+.sheet.a4 { page: a4; }
+.sh-head { border-bottom: 1.2pt solid #1C2A2F; padding-bottom: 3mm; margin-bottom: 4mm; }
+.eyebrow { font: 500 7.5pt "JetBrains Mono", monospace; letter-spacing: .06em; text-transform: uppercase; color: #56686D; }
+h1 { font: 700 17pt/1.15 Unbounded, "Golos Text", Arial, sans-serif; margin: 1mm 0; }
+h2 { font: 600 12pt Unbounded, "Golos Text", Arial, sans-serif; margin: 5mm 0 2mm; }
+h3 { font-size: 10.5pt; margin: 4mm 0 2mm; display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+h3 .m, h4 .m { font: 500 7.5pt "JetBrains Mono", monospace; color: #56686D; }
+h4 { font-size: 9.5pt; margin: 0 0 1mm; }
+p { margin: 0 0 2mm; }
+.sub { color: #56686D; font-size: 8.5pt; margin: 1mm 0 0; }
+.num { font-family: "JetBrains Mono", monospace; font-size: .92em; }
+.pfig { display: flex; justify-content: center; }
+.pfig svg { display: block; }
+/* план раздела: расстановка бледнее */
+.engplan .ly-furn, .engplan .ly-detail, .engplan .ly-rug { opacity: .22; }
+.engplan .ly-labels { opacity: .45; }
+.engplan .ly-dims { opacity: .35; }
+/* легенды */
+.legend { display: flex; flex-wrap: wrap; gap: 1.5mm 5mm; font-size: 8pt; color: #3D4B50; margin-top: 3mm; }
+.legend span { display: inline-flex; align-items: center; gap: 1.5mm; }
+.legend i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; border: 1px solid; }
+.legend i.bar { height: 4px; border: 0; }
+.legend i.dash { background: transparent !important; border-style: dashed; }
+.legend i.arrow { border: 0; height: 2px; background: repeating-linear-gradient(90deg, #147A82 0 4px, transparent 4px 7px); }
+.legend .sym { width: 18px; height: 18px; border: 0.5pt solid #D1DAD9; border-radius: 3px; }
+/* карточки и таблицы */
+.pcards { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin: 2mm 0; }
+.card { border: 0.6pt solid #C9D3D2; border-radius: 2.5mm; padding: 2.5mm 3.5mm; break-inside: avoid; }
+.card h3 { margin: 0 0 1.5mm; }
+.card ul { margin: 0; padding-left: 4.5mm; }
+.card li { margin-bottom: .8mm; }
+.tblock { margin: 3mm 0; }
+.tblock h3 { margin-top: 3mm; }
+.tablewrap { border: 0.6pt solid #C9D3D2; border-radius: 2mm; overflow: hidden; }
+table { border-collapse: collapse; width: 100%; font-size: 8.3pt; }
+th, td { text-align: left; padding: 1.3mm 2mm; border-bottom: 0.5pt solid #D1DAD9; vertical-align: top; }
+th { font-weight: 700; background: #F1F4F4; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+td:first-child { color: #56686D; }
+td b { color: #147A82; }
+/* схемы */
+.pdiag { break-inside: avoid; }
+.pd-fig { border: 0.6pt solid #C9D3D2; border-radius: 2mm; padding: 2mm; display: flex; justify-content: center; }
+.pd-fig svg { width: 100%; height: auto; max-height: 215mm; }
+.pinfo { columns: 2; column-gap: 5mm; break-before: page; }
+.pinfo h3 { column-span: all; }
+.pi { break-inside: avoid; border-bottom: 0.5pt solid #D1DAD9; padding: 1.5mm 0; font-size: 8pt; }
+.pi dl { margin: 0; }
+.pi dt { font-weight: 700; color: #56686D; font-size: 7.5pt; margin-top: .8mm; }
+.pi dd { margin: 0; }
+.pi ul { margin: .5mm 0 0; padding-left: 4mm; }
+.cover ol { font-size: 11pt; line-height: 1.7; }
+h2, h3, h4 { break-after: avoid; page-break-after: avoid; }
+.tblock:has(tbody tr:nth-child(-n+12):last-child) { break-inside: avoid; }
