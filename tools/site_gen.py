@@ -66,6 +66,13 @@ class Project:
         o.update(r.get("override", {}).get(n, {}))
         return o
 
+    def tips(self, n, room_id=None):
+        """Советы «на что обратить внимание»: общие (room_id=None) или по комнате. Необязательно: content.TIPS."""
+        t = getattr(self.content, "TIPS", None) or {}
+        if room_id is None:
+            return t.get("common", [])
+        return t.get("rooms", {}).get(n, {}).get(room_id, [])
+
     def notes(self, r, n):
         """Группа заметок комнаты в варианте n, иначе — из варианта 1."""
         for vn in (n, 1):
@@ -413,6 +420,7 @@ def pages_for(p, projects):
   <div class="notes">{"".join(note_card(*g) for g in v["rooms"])}</div>
 </section>
 <section class="block"><h2>Комнаты</h2><div class="rcards">{"".join(rooms_cards)}</div></section>
+{tips_block(p, vdir, n)}
 <section class="block"><h2>Разделы проекта</h2><div class="rcards">{"".join(sec_cards)}</div></section>
 <section class="block"><h2>В объёме</h2>
   <p>{link(vdir, vdir + "/3d", "Открыть 3D-модель →", "btn")}</p>
@@ -466,6 +474,7 @@ def pages_for(p, projects):
             body = f'''<header class="phead compact"><div class="eyebrow">{vname}</div><h1>{E(rr["name"])}<span class="m">{E(rr["area"])}</span></h1></header>
 {viewer(svg_with(svg, asset(rdir, p.meta["plan_image"]), crop_box(rr["rect"])), "pz-room")}
 <section class="block two-col">{notes}<div class="card"><h3>Разделы по комнате</h3><ul class="plain">{secs}</ul></div></section>
+{room_tips(p, n, r["id"])}
 {gal}
 {pager}'''
             pages.append(Page(rdir, f"{rr['name']}, {vname.lower()}", [home, obj_crumb, v_crumb, ("Комнаты", None), (rr["name"], rdir)], body, "room"))
@@ -537,6 +546,27 @@ def pages_for(p, projects):
 <section class="block two-col">{status(xdir)}{here}</section>'''
                 pages.append(Page(xdir, f"{s['name']}: {rr['name']}", [home, obj_crumb, v_crumb, s_crumb, (rr["name"], xdir)], body, "section"))
     return pages
+
+
+def room_tips(p, n, room_id):
+    lis = p.tips(n, room_id)
+    if not lis:
+        return ""
+    return f'<section class="block"><div class="card tips"><h3>На что обратить внимание</h3><ul>{"".join(f"<li>{x}</li>" for x in lis)}</ul></div></section>'
+
+
+def tips_block(p, vdir, n):
+    common = p.tips(n)
+    cards = []
+    for r in p.obj.ROOMS:
+        lis = p.tips(n, r["id"])
+        if lis:
+            name = link(vdir, f"{vdir}/komnaty/{r['id']}", E(p.room(r, n)["name"]))
+            cards.append(f'<div class="card tips"><h3>{name}</h3><ul>{"".join(f"<li>{x}</li>" for x in lis)}</ul></div>')
+    if not common and not cards:
+        return ""
+    head = f'<div class="card tips wide"><h3>Общие правила</h3><ul>{"".join(f"<li>{x}</li>" for x in common)}</ul></div>' if common else ""
+    return f'<section class="block"><h2>На что обратить внимание</h2>{head}<div class="ecards">{"".join(cards)}</div></section>'
 
 
 def caption_for(p, shot):

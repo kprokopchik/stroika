@@ -286,6 +286,10 @@ details.info summary .m { font: 500 12px var(--f-mono); color: var(--muted); }
 .sym-legend { gap: 8px 16px; }
 .sym-legend span { gap: 4px; }
 .sym-legend .sym { flex: 0 0 auto; background: #fff; border-radius: 6px; border: 1px solid var(--line); }
+/* на что обратить внимание */
+.tips { border-left: 4px solid var(--build); }
+.tips h3 a { color: inherit; }
+.tips li { font-size: 14px; }
 /* блоки инженерных разделов */
 .eblocks { gap: 22px; }
 .ecards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
