@@ -53,6 +53,8 @@ def blocks_print(blocks):
                 out.append(f'<div class="pdiag"><h3>{E(title)}</h3><img src="{source}" style="display:block;max-width:100%;height:175mm;object-fit:contain;margin:auto"><p class="sub">{caption}</p></div>')
         elif kind == "cards":
             out.append('<div class="pcards">' + "".join(G.note_card(t, m, lis) for t, m, lis in b[1]) + "</div>")
+        elif kind == "details":
+            out.append(f'<h2>{E(b[2])}</h2>'+blocks_print(b[3]))
         elif kind == "table":
             out.append(G.table_html(*b[1:]))
         elif kind == "filter_table":
@@ -134,7 +136,7 @@ def sheets_for(p):
                 X = D["extras"].get(x["id"])
                 if not X:
                     continue
-                t = sheet_text(eb, x["name"], X["lede"], X["blocks"])
+                t = sheet_text(eb, x["name"], X["lede"], X.get("pdf_blocks", X["blocks"]))
                 extra_sheets = []
                 if X.get("overlay"):
                     extra_sheets.append(sheet_plan(eb, x["name"], G.with_overlay(svg, X["overlay"]), vb, G.legend_html(X.get("legend", [])), eng=True))

@@ -240,3 +240,17 @@ document.querySelectorAll('[data-filter-table]').forEach(function (root) {
   });
   filter();
 });
+
+// Ссылки на конкретный шаг раскрывают его карточку, в том числе при первом заходе.
+(function () {
+  function openDocumentDetail() {
+    var target;
+    try { target = document.getElementById(decodeURIComponent(location.hash.slice(1))); }
+    catch (_) { return; }
+    if (!target) return;
+    var detail = target.matches('[data-doc-details]') ? target : target.closest('[data-doc-details]');
+    if (detail) { detail.open = true; detail.scrollIntoView({ block:'start' }); }
+  }
+  window.addEventListener('hashchange', openDocumentDetail);
+  openDocumentDetail();
+})();

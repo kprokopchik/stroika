@@ -200,6 +200,10 @@ def blocks_html(blocks):
             out.append(f'<div class="dblock"><h3>{E(title)}</h3>' + figure(E(data["src"]), caption, w=data.get("width", 1024), h=data.get("height", 1536)) + '</div>')
         elif kind == "cards":
             out.append('<div class="ecards">' + "".join(note_card(t, m, lis) for t, m, lis in b[1]) + "</div>")
+        elif kind == "details":
+            _, key, title, children = b
+            out.append(f'<details class="doc-details" id="{E(key)}" data-doc-details><summary>{E(title)}</summary>'
+                       f'<div class="doc-details-body">{blocks_html(children)}</div></details>')
         elif kind == "table":
             out.append(table_html(*b[1:]))
         elif kind == "filter_table":
