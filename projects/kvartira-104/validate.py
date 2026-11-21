@@ -2,6 +2,7 @@
 
 Не заменяет обмер и проверку проекта архитектором.
 """
+import math
 import sys
 from bisect import bisect_right
 from collections import deque
@@ -9,6 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools'))
 import layout
+from geometry104 import ROOM_PROBES
 
 
 def overlap(a, b):
@@ -23,7 +25,7 @@ def check_enclosures(p, variant):
     """
     barriers = []
     for i in p.items:
-        if i['kind'] in ('wall', 'shaft', 'window'):
+        if i['kind'] in ('wall', 'shaft', 'window', 'slide'):
             barriers.append((i['x1'], i['y1'], i['x2'], i['y2']))
         elif i['kind'] == 'door':
             (x, y), (x2, y2) = i['hinge'], i['closed']
@@ -60,7 +62,9 @@ def check_enclosures(p, variant):
 
     outside, common = at(-40, -60), at(450, 720)
     assert common != outside and common > 0, 'Незамкнутый наружный контур'
-    probes = dict(layout.ROOM_PROBES[variant], su1=(730, 510), su2=(720, 930))
+    probes = dict(ROOM_PROBES[variant], su1=(730, 510), su2=(720, 930))
+    if variant == 2:
+        probes['гардеробная'] = (1050, 610)
     groups = {name: at(*point) for name, point in probes.items()}
     assert all(c > 0 and c not in (outside, common) for c in groups.values()), ('Дыра в стене', groups)
     assert len(set(groups.values())) == len(groups), ('Комнаты соединены незаявленным проёмом', groups)
@@ -86,15 +90,95 @@ def check_wall_connections(p):
             dy = min(a['y2'], b['y2']) - max(a['y1'], b['y1'])
             return dx >= 0 and dy >= 0 and (dx > 0 or dy > 0)
         assert any(b is not a and connected(b) for b in walls), ('Оторванная перегородка', a)
-    for i in p.items:
-        if i['kind'] in ('bed', 'wardrobe', 'box', 'shelf', 'appliance', 'basin', 'bath', 'wc', 'washer', 'walkin', 'counter'):
-            rect = (i['x'], i['y'], i['x']+i['w'], i['y']+i['h'])
-            assert not any(overlap(rect, (w['x1'], w['y1'], w['x2'], w['y2'])) for w in walls), ('Мебель внутри стены', i)
 
 
-for v in (1, 2):
+def furniture_bounds(item):
+    kind = item['kind']
+    if kind in ('box', 'bed', 'bench', 'wardrobe', 'sofa', 'shelf', 'washer',
+                'wc', 'walkin', 'basin', 'bath', 'counter', 'appliance'):
+        x, y = item['x'], item['y']
+        return x, y, x+item['w'], y+item['h']
+    if kind == 'diagonal_chair':
+        r = item['size']/math.sqrt(2)  # проекция квадрата, повёрнутого на 45°
+        return item['cx']-r, item['cy']-r, item['cx']+r, item['cy']+r
+    if kind in ('office_chair', 'chair', 'roundtable'):
+        r = item['size']/2 if kind == 'chair' else item['r']
+        x, y = item['cx'], item['cy']
+        return x-r, y-r, x+r, y+r
+
+
+def check_use(p, v):
+    # Проверяем реальные предметы, включая спинки стульев. Круглый стол и
+    # круглое кресло для маршрута консервативно вписываем в квадрат.
+    furniture = [(item, furniture_bounds(item)) for item in p.items if furniture_bounds(item)]
+    solid = [(i['x1'], i['y1'], i['x2'], i['y2']) for i in p.items
+             if i['kind'] in ('wall','window','shaft')]
+    for j, (a, rect) in enumerate(furniture):
+        assert not any(overlap(rect, w) for w in solid), (v, 'предмет в стене', a)
+        for b, other in furniture[j+1:]:
+            if a['kind'] == 'roundtable' or b['kind'] == 'roundtable':
+                disk, box = (a, other) if a['kind'] == 'roundtable' else (b, rect)
+                dx = max(box[0]-disk['cx'], 0, disk['cx']-box[2])
+                dy = max(box[1]-disk['cy'], 0, disk['cy']-box[3])
+                seat = b if disk is a else a
+                if seat['kind'] == 'diagonal_chair':
+                    # Каждое кресло обращено прямо к столу: расстояние до
+                    # ближней стороны сиденья измеряется по этому радиусу.
+                    distance = math.hypot(disk['cx']-seat['cx'], disk['cy']-seat['cy']) - seat['size']/2
+                    assert distance >= disk['r'], (v, a, b)
+                else:
+                    assert dx*dx+dy*dy >= disk['r']**2, (v, a, b)
+            else:
+                assert not overlap(rect,other), (v, 'наложение мебели',a,b)
+    doors = [i for i in p.items if i['kind']=='door']
+    for door in doors:
+        hx,hy = door['hinge']
+        cx,cy = door['closed']
+        ox,oy = door['opened']
+        radius = abs(cx-hx)+abs(cy-hy)
+        quadrant = min(hx,cx,ox),min(hy,cy,oy),max(hx,cx,ox),max(hy,cy,oy)
+        for item,rect in furniture:
+            dx = max(rect[0]-hx, 0, hx-rect[2])
+            dy = max(rect[1]-hy, 0, hy-rect[3])
+            assert not (overlap(rect,quadrant) and dx*dx+dy*dy < radius**2), (v, 'дверь задевает', item)
+        solid.append((min(hx,ox)-1,min(hy,oy)-1,max(hx,ox)+1,max(hy,oy)+1))
+    solid.extend(rect for _,rect in furniture)
+
+    # За входной дверью начинаем с центра прихожей. Стены фасада
+    # не допускают обхода снаружи. Шаг 5 см, свободный квадрат 80×80.
+    # Для захода в с/у в проём 80 см отдельно проверяем квадрат 70×70.
+    def accessible(width, destinations):
+        half = width/2
+        blocked=set()
+        for x1,y1,x2,y2 in solid:
+            for x in range(math.floor((x1-half)/5)+1, math.ceil((x2+half)/5)):
+                for y in range(math.floor((y1-half)/5)+1, math.ceil((y2+half)/5)):
+                    blocked.add((x,y))
+        start = (258,152)  # 1290,760
+        assert start not in blocked
+        visited={start}
+        queue=deque([start])
+        while queue:
+            x,y=queue.popleft()
+            for q in ((x-1,y),(x+1,y),(x,y-1),(x,y+1)):
+                if 0<=q[0]<=269 and 0<=q[1]<=209 and q not in visited and q not in blocked:
+                    visited.add(q)
+                    queue.append(q)
+        for name,(x,y) in destinations.items():
+            assert (x//5,y//5) in visited, (v, name, width, (x,y))
+    targets = dict(кухня=(480,925), гостиная=(285,530),
+                   детская_слева=(145,255), родители=(600,145) if v==3 else (500,260),
+                   детская_справа=(1025,280) if v!=3 else (1045,330))
+    if v==2:
+        targets['гардеробная']=(1050,610)
+    accessible(80, targets)
+    accessible(70, {'ванная':(743,522), 'душевая':(715,905)})
+
+
+for v in layout.VARIANTS:
     p = layout.build_plan(v)
     check_enclosures(p, v)
+    check_use(p, v)
     check_kitchen_backing(p)
     check_wall_connections(p)
     for key, minimum in [('kid1', 13), ('kid2', 13), ('parents', 17)]:
@@ -109,10 +193,4 @@ for v in (1, 2):
                and i['y'] + i['h']/2 == layout.SINK_CENTER[1] for i in p.items)
     assert all(any(i['kind'] == 'shaft' and i['x1'] <= x <= i['x2'] and i['y1'] <= y <= i['y2']
                    for i in p.items) for x, y in layout.RISERS)
-    # Полноразмерные каркасы кроватей и шкафы не пересекаются.
-    furniture = [i for i in p.items if i['kind'] in ('bed', 'wardrobe')]
-    for j, a in enumerate(furniture):
-        for b in furniture[j+1:]:
-            assert not overlap((a['x'], a['y'], a['x']+a['w'], a['y']+a['h']),
-                               (b['x'], b['y'], b['x']+b['w'], b['y']+b['h'])), (v, a, b)
     print(f'Вариант {v}: замкнутость комнат и с/у, примыкания стен, техника у стены кухни, площади и мебель — OK')
