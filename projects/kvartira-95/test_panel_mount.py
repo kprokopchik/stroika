@@ -1,118 +1,131 @@
-"""Проверки читаемых листов щита: python3 projects/kvartira-95/test_panel_mount.py."""
+"""Проверки согласованности схемы, планов и бюджета упрощённого щита."""
 from pathlib import Path
 import sys
 import unittest
 import xml.etree.ElementTree as ET
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools'))
 import eng
-from panel_readable import circuit_pages, overview_svg, COL
+from panel_model import BANKS, BANK_OF, CONTROLLED_IDS, BRANCHES
+from electrical_docs import PAGES
+from panel_readable import circuit_pages, overview_svg, bank_svg, priority_svg
+from panel_wiring import terminal_rows
 from load_priority import CONTROLLED
-from power_budget import scenario_rows
+from power_budget import scenario_rows, LOADS
 
 
-class ReadablePanel(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.pages = circuit_pages(eng.GROUPS, eng.DEV, eng.PANEL_ROWS)
+class SimplifiedPanel(unittest.TestCase):
+    def test_all_plan_points_use_active_groups(self):
+        self.assertEqual(len(eng.GROUPS), 13)
+        for point in eng.EL + eng.SW + eng.LT:
+            self.assertIn(point['g'], eng.GROUPS)
+            self.assertNotIn('ups', point.get('kinds', []))
+        for code, group in {'ТП':15, 'ПС':15, 'Конд':20, 'Хол':8, 'СВЧ':9, 'Выт':9, 'Стир':14, 'Суш':18}.items():
+            points = [p for p in eng.EL if p.get('code') == code]
+            self.assertTrue(points, code)
+            self.assertEqual({p['g'] for p in points}, {group})
+        self.assertEqual({p['g'] for p in eng.LT}, {1, 3})
+        self.assertNotEqual(BANK_OF[1], BANK_OF[3])
 
-    def test_every_overview_button_has_a_circuit(self):
-        ids = {p["id"] for p in self.pages}
-        self.assertEqual(ids, {"inlet", "ups", "priority"} | {str(g) for g in eng.GROUPS})
-        self.assertEqual(len(self.pages), len(ids))
-        svg = ET.fromstring(overview_svg(eng.PANEL_ROWS, eng.DEV))
-        triggers = [el.attrib["data-circuit"] for el in svg.iter() if "data-circuit" in el.attrib]
-        self.assertTrue(set(triggers) <= ids)
-        info_keys = {el.attrib["data-info"] for el in svg.iter() if "data-info" in el.attrib}
-        self.assertTrue(info_keys <= set(eng.DEV))
-        self.assertTrue({str(g) for g in eng.GROUPS} <= set(triggers))
+    def test_rcd_groups_partition_lines_and_controlled_bank(self):
+        all_groups = [g for _, groups, _, _ in BANKS.values() for g in groups]
+        self.assertCountEqual(all_groups, eng.GROUPS)
+        self.assertEqual(len(all_groups), len(set(all_groups)))
+        self.assertEqual(len({b[2] for b in BANKS.values()}), len(BANKS))
+        self.assertEqual(set(BANKS['QD4'][1]), set(CONTROLLED_IDS))
+        self.assertEqual(set(CONTROLLED), {9, 15, 20})
+        self.assertEqual({(v[0], v[1]) for v in CONTROLLED.values()}, {('KM1', 1)})
+        for g in (1,3,4,5,8,11,12,13,14,18):
+            self.assertNotIn(g, CONTROLLED)
 
-    def test_group_addresses_and_backup_source(self):
+    def test_every_panel_button_opens_existing_sheet(self):
+        pages = circuit_pages()
+        ids = {p['id'] for p in pages}
+        self.assertEqual(len(ids), len(pages))
+        root = ET.fromstring(overview_svg())
+        for node in root.iter():
+            if 'data-circuit' in node.attrib:
+                self.assertIn(node.attrib['data-circuit'], ids)
+                self.assertIn(node.attrib['data-info'], eng.DEV)
+        for page in pages:
+            ET.fromstring(page['svg'])
+
+    def test_cable_conductors_and_correct_neutral_bank(self):
+        rows = terminal_rows()
+        self.assertEqual(len(rows), len(eng.GROUPS) + 1)
         for g in eng.GROUPS:
-            root = ET.fromstring(next(p["svg"] for p in self.pages if p["id"]==str(g)))
-            labels = [el.text or "" for el in root.iter() if el.tag.endswith("text")]
-            for pol in ("L","N","PE"):
-                self.assertIn(f"X{g}.{pol}", labels)
-            self.assertTrue(any(t.startswith(f"W{g} ·") for t in labels))
-            self.assertIn("XPE",labels)
-            if g==17:
-                self.assertIn("SA.C.L",labels);self.assertIn("SA.C.N",labels)
-                self.assertNotIn("XL",labels);self.assertNotIn("XN",labels)
+            svg = bank_svg(BANK_OF[g])
+            root = ET.fromstring(svg)
+            labels = {n.text for n in root.iter() if n.tag.endswith('text')}
+            for pol in ('L','N','PE'):
+                self.assertIn(f'W{g}.{pol}', labels)
+            neutral = BANKS[BANK_OF[g]][2]
+            self.assertIn(neutral, labels)
+            row = next(r for r in rows if r[0].startswith(f'QF{g} /'))
+            self.assertIn(neutral, row[2])
+            self.assertIn(f'W{g}.PE', row[3])
+            if g in BRANCHES:
+                self.assertIn(f'X{g}.L', row[1])
             else:
-                self.assertIn("XL",labels);self.assertIn("XN",labels)
+                self.assertNotIn(f'X{g}.L', row[1])
+        light = next(r for r in rows if r[0].startswith('QF3 /'))
+        self.assertIn('QF3.N', light[2])
+        self.assertEqual(eng.DEV['3'][3], 2)
 
-    def test_group_wire_paths_stay_short_and_parallel(self):
-        # У каждого группового листа только прямые вертикальные L/N/PE.
-        # Это не позволяет незаметно вернуть обходы через другие рейки.
-        for p in self.pages:
-            if not p["id"].isdigit():continue
-            paths = [el for el in ET.fromstring(p["svg"]).iter() if el.tag.endswith("polyline") and el.attrib.get("stroke") in COL.values()]
-            switched = p["id"] in ("9", "15", "19")
-            self.assertEqual(len(paths),12 if switched else 8)
-            for path in paths:
-                points = [tuple(map(float,s.split(','))) for s in path.attrib["points"].split()]
-                self.assertEqual(len(points),2)
-                if points[0][0] != points[1][0]:
-                    self.assertTrue(switched)
-                    self.assertEqual(path.attrib["stroke"],COL["L"])
-                    self.assertLess(abs(points[0][0]-points[1][0]),20)
-                self.assertLessEqual(abs(points[0][1]-points[1][1]),450)
-
-    def test_consumer_lines_match_requested_separation(self):
-        appl = {p["code"]:p["g"] for p in eng.EL if p["t"] == "appl"}
-        for code,g in {"Хол":8,"СВЧ":9,"Выт":9,"Дух":11,"Вар":12,"Стир":14,"Суш":18}.items():
-            self.assertEqual(appl[code],g)
-        bath_sockets = [p for p in eng.EL if p["t"]=="sock" and p["room"].startswith("su-")]
-        self.assertTrue(bath_sockets)
-        self.assertTrue(all(p["g"]==15 for p in bath_sockets))
-        self.assertEqual(set(CONTROLLED),{9,15,19,20,21})
-        self.assertEqual([g for g,_ in sorted(CONTROLLED.items(),key=lambda item:item[1][1])],[15,19,20,21,9])
-        for g in (8,11,12,13,14,16,17,18):
-            self.assertNotIn(g,CONTROLLED)
-
-    def test_panel_has_room_and_every_group_once(self):
+    def test_all_rails_fit_and_no_consumer_is_duplicated(self):
+        self.assertEqual(len(eng.PANEL_ROWS), 3)
         for row in eng.PANEL_ROWS:
-            self.assertEqual(sum(eng.DEV[k][3] for k in row),18)
-        self.assertEqual(len(eng.PANEL_ROWS),5)
-        groups=[int(k) for row in eng.PANEL_ROWS for k in row if k.isdigit()]
-        self.assertEqual(sorted(groups),[1,3,4,5,8,9,11,12,13,14,15,16,17,18,19,20,21])
-        self.assertEqual(eng.DEV["free2"][3],2)
+            self.assertEqual(sum(eng.DEV[k][3] for k in row), 18)
+        consumers = [int(k) for row in eng.PANEL_ROWS for k in row if k.isdigit()]
+        self.assertCountEqual(consumers, eng.GROUPS)
+        for removed in ('16','17','19','21','QD','SA','PM','KM2','KM5','KA3','KA4'):
+            self.assertNotIn(removed, eng.DEV)
+        self.assertIn('r1', eng.DEV)
+        self.assertNotIn('term', eng.DEV)
+        self.assertEqual({k for k in eng.DEV if k.startswith('X')}, {'XD','X15','X20'})
 
-    def test_shared_groups_and_removed_numbers(self):
-        for p in eng.EL + eng.SW + eng.LT:
-            self.assertNotIn(p["g"],{2,6,7,10})
-        for p in eng.EL:
-            if p["room"] in ("detskaya-1","detskaya-2"):
-                self.assertEqual(p["g"],5)
-            if p["room"] in ("spalnya","prihozhaya","koridor","sport") and p["t"] in ("sock","floor"):
-                self.assertEqual(p["g"],4)
-        self.assertEqual({p["g"] for p in eng.LT},{1,3})
-        self.assertEqual(len(eng.GROUPS),17)
+    def test_whole_project_builds_without_obsolete_source(self):
+        data = eng.build(1)
+        self.assertEqual(list(data['elektrika']['extras']), [p['id'] for p in PAGES])
+        self.assertTrue(data['elektrika']['hide_plan'])
+        text = repr(data)
+        self.assertNotRegex(text, r'LiFePO4|АКБ|DO[1-5]|SA\.C|KM5|KA3|KA4')
+        # В новых разделах есть явное пояснение «без ИБП»; проверяем состав, а не запрет слова.
+        self.assertFalse(any('ИБП' in str(value) for value in eng.DEV.values()))
+        self.assertEqual(eng.build(2), {})
+        self.assertIn('N4S', priority_svg())
+        self.assertIn('KM1a', priority_svg())
+        self.assertIn('XC.N', priority_svg())
 
-    def test_switched_lines_keep_neutrals_and_ac_supply_separate(self):
-        for g,(actor,order,method,restore) in CONTROLLED.items():
-            root=ET.fromstring(next(p["svg"] for p in self.pages if p["id"]==str(g)))
-            labels=[el.text or "" for el in root.iter() if el.tag.endswith("text")]
-            self.assertTrue(any(actor in t for t in labels))
-            self.assertIn("XN",labels)
-            self.assertIn(f"X{g}.N",labels)
-            self.assertTrue(any("XC.N" in t for t in labels))
-            if g in (20,21):
-                self.assertIn("Питание L/N здесь не разрывается",labels)
-            else:
-                self.assertIn(actor,labels)
+    def test_separate_power_and_lighting_plans(self):
+        power=eng.el_overlay('power')
+        light=eng.el_overlay('light')
+        self.assertNotIn('lyr-light', power)
+        self.assertNotIn('lyr-links', power)
+        self.assertIn('lyr-light', light)
+        self.assertIn('lyr-links', light)
+        self.assertLess(len(light),len(eng.el_overlay()))
 
-    def test_budget_accounts_for_two_machines_and_local_kitchen_limit(self):
-        rows={r[0]:r for r in scenario_rows()}
-        self.assertEqual(rows["Стирка + сушка + ПММ"][2],"7,8")
-        self.assertEqual(rows["Варочная + три машины"][2],"11,3")
-        self.assertIn("перегрузка QF9 C16",rows["Все нагреватели кухонных приборов"][4])
-        self.assertEqual(rows["Все нагреватели кухонных приборов"][2],"5,75")
+    def test_branch_cable_names_are_unique(self):
+        from panel_readable import branch_svg
+        names=[name for branches in BRANCHES.values() for name,_ in branches]
+        self.assertEqual(len(names),8)
+        self.assertEqual(len(names),len(set(names)))
+        root=ET.fromstring(branch_svg())
+        self.assertEqual(len({n.text for n in root.iter() if n.tag.endswith('text') and n.text and n.text.startswith('W15.')}),6)
 
-    def test_print_set_and_all_svg_are_valid(self):
-        self.assertEqual([p["id"] for p in self.pages if p["print"]],["inlet","priority","1","9","15","20","ups"])
-        for p in self.pages:ET.fromstring(p["svg"])
+    def test_load_budget_keeps_two_machines_and_local_overload(self):
+        rows = {r[0]:r for r in scenario_rows()}
+        self.assertEqual(rows['Стирка + сушка + ПММ'][2], '7,8')
+        self.assertEqual(rows['Варочная + три машины'][2], '11,3')
+        self.assertEqual(rows['Все нагреватели кухонных приборов'][2], '5,75')
+        self.assertIn('перегрузка QF9 C16', rows['Все нагреватели кухонных приборов'][4])
+        self.assertNotIn('charge', {r[0] for r in LOADS})
+        by_id = {r[0]:r for r in LOADS}
+        self.assertEqual(by_id['floor'][2], '15')
+        self.assertEqual(by_id['ac_living'][2], '20')
+        self.assertEqual(by_id['network'][2], '8')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

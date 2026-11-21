@@ -200,6 +200,43 @@
     }
     select.addEventListener('change', function () { choose(select.value, false); });
     document.addEventListener('panel-circuit', function (e) { choose(e.detail.key, true); });
+    function fromHash() {
+      var hash = decodeURIComponent(window.location.hash.slice(1));
+      if (hash.indexOf('circuit-') === 0) choose(hash.slice(8), false);
+    }
     choose(select.value, false);
+    fromHash();
+    window.addEventListener('hashchange', fromHash);
   });
 })();
+
+// Общая ведомость: фильтруем уже загруженные строки, без сетевых запросов.
+document.querySelectorAll('[data-filter-table]').forEach(function (root) {
+  var search = root.querySelector('[data-table-search]');
+  var stage = root.querySelector('[data-table-stage]');
+  var rows = Array.from(root.querySelectorAll('tbody tr'));
+  function filter() {
+    var query = search.value.toLocaleLowerCase('ru').trim();
+    var count = 0;
+    rows.forEach(function (row) {
+      var show = (!stage.value || row.cells[1].textContent.trim() === stage.value) &&
+        (!query || row.textContent.toLocaleLowerCase('ru').includes(query));
+      row.hidden = !show;
+      if (show) count++;
+    });
+    root.querySelector('[data-table-count]').textContent = count + ' из ' + rows.length + ' позиций';
+  }
+  search.addEventListener('input', filter);
+  stage.addEventListener('change', filter);
+  root.querySelector('[data-table-reset]').addEventListener('click', function () {
+    search.value = ''; stage.value = ''; filter();
+  });
+  window.addEventListener('hashchange', function () {
+    if (window.location.hash.indexOf('#sku-') === 0) {
+      search.value = ''; stage.value = ''; filter();
+      var target = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+      if (target) target.scrollIntoView();
+    }
+  });
+  filter();
+});

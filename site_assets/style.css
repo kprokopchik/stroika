@@ -329,3 +329,16 @@ details.info summary .m { font: 500 12px var(--f-mono); color: var(--muted); }
 .pager a { font-weight: 600; text-decoration: none; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 
 @media (prefers-reduced-motion: reduce) { .sidenav, .scrim { transition: none; } }
+
+/* Закупки: независимый скролл таблицы, поиск и отбор этапа на телефоне. */
+.table-filters { display:flex; flex-wrap:wrap; align-items:end; gap:12px; margin:24px 0 14px; }
+.table-filters label { display:flex; flex-direction:column; gap:6px; flex:1 1 200px; font-weight:600; }
+.table-filters input, .table-filters select, .table-filters button { font:inherit; border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--surface); color:inherit; max-width:100%; }
+.table-filters output { flex:1 1 150px; padding:10px 0; font-size:.85rem; }
+.filter-table { min-width:0; max-width:100%; }
+.filter-table table { min-width:1550px; }
+.filter-table td:first-child, .filter-table th:first-child { position:sticky; left:0; background:var(--surface); min-width:100px; z-index:1; }
+.filter-table [hidden] { display:none !important; }
+.filter-table td:nth-child(3) { min-width:210px; }
+.filter-table td:nth-child(9) { min-width:230px; }
+.filter-table td:nth-child(10) { min-width:340px; }

@@ -1,5 +1,5 @@
 """PDF для печати: планы вариантов (A3, масштаб 1:50), разделы (план A3 + таблицы A4),
-щит, ИБП, коллектор, шкаф (A4) и альбом варианта со всеми листами.
+щит, коллектор, шкаф (A4) и альбом варианта со всеми листами.
 
     python3 tools/make_pdf.py            # все объекты → projects/<объект>/pdf/*.pdf
     python3 tools/make_pdf.py kvartira-95
@@ -8,6 +8,7 @@
 Сам сайт по-прежнему собирается без них: build.py просто копирует готовые PDF и ставит ссылки.
 """
 import datetime
+import base64
 import json
 import re
 import shutil
@@ -41,13 +42,27 @@ def blocks_print(blocks):
     out = []
     for b in blocks:
         kind = b[0]
-        if kind == "cards":
+        if kind == "links":
+            _, title, links = b
+            out.append(f'<h3>{E(title)}</h3><ul>' + "".join(f'<li><b>{E(label)}</b>: {E(description)}</li>' for label, _, description in links) + '</ul>')
+        elif kind == "image":
+            _, title, data, caption = b
+            file = Path(data["file"])
+            if file.exists():
+                source = 'data:image/png;base64,' + base64.b64encode(file.read_bytes()).decode()
+                out.append(f'<div class="pdiag"><h3>{E(title)}</h3><img src="{source}" style="display:block;max-width:100%;height:175mm;object-fit:contain;margin:auto"><p class="sub">{caption}</p></div>')
+        elif kind == "cards":
             out.append('<div class="pcards">' + "".join(G.note_card(t, m, lis) for t, m, lis in b[1]) + "</div>")
         elif kind == "table":
             out.append(G.table_html(*b[1:]))
+        elif kind == "filter_table":
+            title, heads, rows, note = b[1:]
+            compact = [[row[i] for i in (0, 1, 2, 5, 6, 7)] for row in rows]
+            out.append(G.table_html(title, ['Код', 'Этап', 'Позиция', 'Купить', '₽/уп.', 'Итого ₽'], compact,
+                                    'Источники, формулы расхода и примечания — в Excel/CSV и на странице закупок. Цены — предварительные допуски.'))
         elif kind == "circuit_browser":
             _, title, circuits, info = b
-            out.append(f'<h3>{E(title)}</h3><p class="sub">В печати: ввод, управление разгрузкой, примеры обычной и отключаемых групп, кондиционер и ИБП. Отдельный лист каждой группы доступен на сайте; адреса клемм — в таблице.</p>')
+            out.append(f'<h3>{E(title)}</h3><p class="sub">В печати: управление разгрузкой и соединения блоков групповой защиты. Адреса клемм и кабелей — в таблицах.</p>')
             for c in circuits:
                 if c.get("print"):
                     out.append(f'<div class="pdiag"><h3>{E(c["title"])}</h3><div class="pd-fig">{c["svg"]}</div></div>')
@@ -112,15 +127,20 @@ def sheets_for(p):
             plan = sheet_plan(eb, s["name"], G.with_overlay(svg, D["overlay"]), vb, G.legend_html(D["legend"]),
                               "Номера в серых кружках — группы щита." if s["id"] == "elektrika" else "", eng=True)
             text = sheet_text(eb, f'{s["name"]}: пояснения', D["lede"], D["blocks"])
-            docs.append((f"v{n}-{s['id']}", f'{s["name"]}, вариант {n}', [plan, text]))
-            album += [plan, text]
+            section_sheets = [text] if D.get("hide_plan") else [plan, text]
+            docs.append((f"v{n}-{s['id']}", f'{s["name"]}, вариант {n}', section_sheets))
+            album += section_sheets
             for x in s.get("extra", []):
                 X = D["extras"].get(x["id"])
                 if not X:
                     continue
                 t = sheet_text(eb, x["name"], X["lede"], X["blocks"])
-                docs.append((f"v{n}-{s['id']}-{x['id']}", f'{x["name"]}, вариант {n}', [t]))
-                album.append(t)
+                extra_sheets = []
+                if X.get("overlay"):
+                    extra_sheets.append(sheet_plan(eb, x["name"], G.with_overlay(svg, X["overlay"]), vb, G.legend_html(X.get("legend", [])), eng=True))
+                extra_sheets.append(t)
+                docs.append((f"v{n}-{s['id']}-{x['id']}", f'{x["name"]}, вариант {n}', extra_sheets))
+                album += extra_sheets
         if len(album) > 1:
             items = "".join(f"<li>{E(t)}</li>" for name, t, _ in docs if name.startswith(f"v{n}-") and name != f"v{n}-album")
             cover = (f'<section class="sheet a4 cover">{head(p.meta["title"], f"Вариант {n}: все листы", E(v["title"]))}'
