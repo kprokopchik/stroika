@@ -59,13 +59,17 @@ class Sheet:
 
 
 def overview_svg(rows, devices):
-    d = Sheet("Щит: аппараты, реле приоритета и адреса подключений", 1590, 1160)
+    active = [key for row in rows for key in row if key.isdigit()]
+    count = len(rows)
+    height = 210 + count * 250
+    modules = sum(devices[key][3] for row in rows for key in row)
+    d = Sheet("Щит: аппараты, реле приоритета и адреса подключений", height, 1160)
     left, module = 52, 56
-    d.text(580, 31, "Расположение аппаратов · 6 реек по 18 модулей", 23, bold=True)
+    d.text(580, 31, f"Расположение аппаратов · {count} реек по 18 модулей", 23, bold=True)
     d.text(580, 65, "Нажмите аппарат: откроется одна цепь. KP / KM / KA — лист разгрузки.", 16, "#526A74")
-    d.parts.append('<rect x="28" y="98" width="1104" height="1410" rx="12" fill="#FAFCFC" stroke="#A5B5BC" stroke-width="1.5"/>')
+    d.parts.append(f'<rect x="28" y="98" width="1104" height="{30 + count * 250}" rx="12" fill="#FAFCFC" stroke="#A5B5BC" stroke-width="1.5"/>')
     for ri, row in enumerate(rows):
-        y, x = 135 + ri * 230, left
+        y, x = 135 + ri * 250, left
         d.text(1110, y + 70, str(ri + 1), 16, "#72858D", bold=True)
         d.parts.append(f'<rect x="{left}" y="{y+69}" width="1008" height="16" fill="#D7E0E4"/>')
         group_keys = [key for key in row if key.isdigit() and key != "17"]
@@ -103,16 +107,16 @@ def overview_svg(rows, devices):
             elif key == "term":
                 d.box(x+4,y,w-8,146,"", "#EDF4F7")
                 d.text(x+w/2,y+23,"Выходные клеммы · изолированные N каждой группы",14,bold=True)
-                for j in range(21):
-                    cx=x+45+(j%7)*82;cy=y+54+(j//7)*33
-                    d.box(cx-29,cy-12,58,24,f"X{j+1}","#FFFFFF",12)
+                for j, group in enumerate(active):
+                    cx=x+45+(j%7)*((w-70)/7);cy=y+54+(j//7)*33
+                    d.box(cx-29,cy-12,58,24,f"X{group}","#FFFFFF",12)
                 d.text(x+w-38,y+125,"XU",12,"#A9691F",bold=True)
             else:
-                d.box(x+4,y,w-8,146,"Резерв бойлера" if key.startswith("r") else "Запас 10 модулей",size=12)
+                d.box(x+4,y,w-8,146,"Резерв бойлера" if key.startswith("r") else devices[key][2],size=12)
             x += w
-    d.box(53,1528,190,36,"XPE · общая PE", "#EFF7EE",15)
-    d.text(267,1547,"→ Xg — адрес клемм. TA1 — на вводной фазе после QS.",15,anchor="start")
-    d.text(580,1580,"108 модулей — предварительно: габариты аппаратов, клемм и корпуса проверить до закупки.",14,"#526A74")
+    d.box(53,height-62,190,36,"XPE · общая PE", "#EFF7EE",15)
+    d.text(267,height-43,"→ Xg — адрес клемм. TA1 — на вводной фазе после QS.",15,anchor="start")
+    d.text(580,height-10,f"{modules} модулей — предварительно: габариты аппаратов, клемм и корпуса проверить до закупки.",14,"#526A74")
     return d.end()
 
 

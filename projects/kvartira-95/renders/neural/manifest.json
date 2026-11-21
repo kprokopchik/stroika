@@ -1,0 +1,114 @@
+{
+  "variant": 1,
+  "created": "2026-11-21",
+  "generator": "image_gen",
+  "method": "Доработка исходных 3D-ракурсов по изображению",
+  "note": "Визуализация отделки; размеры и расстановку проверять по плану, мелкие детали и вид из окон условные.",
+  "images": [
+    {
+      "image": "v1-kitchen_from_hall.png",
+      "reference": "../v1-kitchen_from_hall.jpg",
+      "caption": "Кухня-гостиная от входа из прихожей",
+      "reference_sha256": "9ee3848d4d7bc18d29328f245572e16fa35de8bf7d5b6021574ac5a0ffb046a1",
+      "image_sha256": "816d8b0afee7262ca40c57528bdcfd7b5ddaa2911630d0406b6dc451269b326a"
+    },
+    {
+      "image": "v1-kitchen_from_window.png",
+      "reference": "../v1-kitchen_from_window.jpg",
+      "caption": "Кухня-гостиная от окна",
+      "reference_sha256": "91398b1038185b88eadaa0524c3990e8b7ab09c8718b38342ece8d247b79cd1f",
+      "image_sha256": "7c2cbd6a89848613b6685b50fd3ed231147d1ccef888b1d74ef70970483515c0"
+    },
+    {
+      "image": "v1-kitchen_run.png",
+      "reference": "../v1-kitchen_run.jpg",
+      "caption": "Кухня: мойка у стояка, посудомойка, 60 см столешницы, варочная",
+      "reference_sha256": "a4a76105cb950d8c270d4654d5804f3f9f9710db220d4a43433d6186bf29d943",
+      "image_sha256": "db9e43064f9901f566382cefec89e3e4fe153379513c256b121d31f54c6eb494"
+    },
+    {
+      "image": "v1-parents_from_door.png",
+      "reference": "../v1-parents_from_door.jpg",
+      "caption": "Спальня от двери: ТВ на пилоне, стол и кресло у окон",
+      "reference_sha256": "0694a6c448dae9b2c3fbe737ded848c3c22c6b86f95b4ec4d45a820d3fbac96f",
+      "image_sha256": "30054bbf8729ee51bcafffae6b0512ff09c68ba5810286c69b7286cd9308942c"
+    },
+    {
+      "image": "v1-parents_bed.png",
+      "reference": "../v1-parents_bed.jpg",
+      "caption": "Спальня от комода: кровать, банкетка, шкаф",
+      "reference_sha256": "729fb2f7a2f12b0e671630169c38890730d7b983ad927c4d802642ce142008b3",
+      "image_sha256": "6fd6b6f5f46c1bdb0971fb4762579a3879ac53c54be481fc05eb7fdaff34e1d2"
+    },
+    {
+      "image": "v1-kid1.png",
+      "reference": "../v1-kid1.jpg",
+      "caption": "Детская 1 от двери: стол 200 см вдоль окна",
+      "reference_sha256": "68b5ca9963f231afdefad7ccff5e016e01f86fb14467500186b24a19a2f9895f",
+      "image_sha256": "3b3d29b5f845a03edc88567a11b753b6ef28070632073de0297912859e69b354"
+    },
+    {
+      "image": "v1-kid1_back.png",
+      "reference": "../v1-kid1_back.jpg",
+      "caption": "Детская 1 от окна: кровать в нише, полка-мост, скалодром",
+      "reference_sha256": "83b492b2354be2f584a5261ba2325270089eb339cc513cd4ade0636da78bc611",
+      "image_sha256": "e7c5971527cf5d26f7f9e8ac391a996bd19cf6e63746bcb2558f193cb9402d84"
+    },
+    {
+      "image": "v1-kid1_house.png",
+      "reference": "../v1-kid1_house.jpg",
+      "caption": "Детская 1: скалодром с матом и низкий стеллаж у толстой стены",
+      "reference_sha256": "e503b7f3f8c54fd5b3d878e4009fcf477e9edf4c93d638e38d7f2a220df759b8",
+      "image_sha256": "4c85b8332edee3b0fcb3d0f6ce8441d00edafc0e85a23809fa2dab1609212b9e"
+    },
+    {
+      "image": "v1-kid2.png",
+      "reference": "../v1-kid2.jpg",
+      "caption": "Детская 2 от окна: кровать-домик за дверью, тумбочка у изголовья",
+      "reference_sha256": "13606703ec2007530e2db67020acc8317fde7e5bf1746e4d4671a16f78dc50ef",
+      "image_sha256": "262dc25139b427f81cf4ed1a8dd4a3d7e2c713a7a9b6d60085cf847fc3fbf19d"
+    },
+    {
+      "image": "v1-kid2_house.png",
+      "reference": "../v1-kid2_house.jpg",
+      "caption": "Детская 2 от шкафа: стеллаж, шведская стенка у стены, кресло-мешок у окна",
+      "reference_sha256": "db1ebab02474a7b5ba14eda829a75c9b36f455c6871d212fc419bfd2bb455029",
+      "image_sha256": "6d7e2f4595ce2ba678b8ae2ac10dd4b430ce74853336766a217c87e9ab4a708a"
+    },
+    {
+      "image": "v1-hall.png",
+      "reference": "../v1-hall.jpg",
+      "caption": "Прихожая: шкаф-купе, шведская стенка, вход в спорт-кладовую",
+      "reference_sha256": "922d8b642a10e001cc25d1fe064f193be52a01fc5315ba3a55c2abb9df6e7963",
+      "image_sha256": "71096d64fcdf16a25c139a73bee9e399e9dfa0d1562a492633954d64bb5d721b"
+    },
+    {
+      "image": "v1-sport.png",
+      "reference": "../v1-sport.jpg",
+      "caption": "Спорт-кладовая: велосипеды на крюках, полки, лыжи",
+      "reference_sha256": "ea508312d1e9124df6d78ed637de56d9c6feea928a753971c0f8691779f8c88f",
+      "image_sha256": "a2b6b9340c15a3311dc6fa6bd119e7eee1ae1378bde2d23be8f79741273b5ae5"
+    },
+    {
+      "image": "v1-corridor.png",
+      "reference": "../v1-corridor.jpg",
+      "caption": "Коридор к спальне родителей",
+      "reference_sha256": "7dbafb85783c542345e4ff805b710a64c8ebf23f1b29ef44b0461ff3e2bf8417",
+      "image_sha256": "82780b9921e4e6c8a71e1b103741e7bc56829d7c6d5f374a8668212f6962a589"
+    },
+    {
+      "image": "v1-bath1.png",
+      "reference": "../v1-bath1.jpg",
+      "caption": "Санузел у спален с ванной 180×80",
+      "reference_sha256": "8da363a14ba678e9da55a69c8843fa893e5623d72a3af070d4989fe2919bc117",
+      "image_sha256": "b67ae1a70c2161a168ef09acc7627f3dbe505c76dbe3aa524ac64ccbd24313b1"
+    },
+    {
+      "image": "v1-bath2.png",
+      "reference": "../v1-bath2.jpg",
+      "caption": "Санузел у входа: душ без поддона у шахты, унитаз у стояка",
+      "reference_sha256": "226c5f27864409dd65c5136da141b80e14336fb17f7b9aeebc74f4b8090a7dd0",
+      "image_sha256": "73d443a0ff34f1bd932c467f458035b1165d4f48a9f5a137cd15fe4e335246b0"
+    }
+  ]
+}

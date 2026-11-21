@@ -60,23 +60,34 @@ class ReadablePanel(unittest.TestCase):
 
     def test_consumer_lines_match_requested_separation(self):
         appl = {p["code"]:p["g"] for p in eng.EL if p["t"] == "appl"}
-        for code,g in {"Хол":10,"СВЧ":9,"Выт":9,"Дух":11,"Вар":12,"Стир":14,"Суш":18}.items():
+        for code,g in {"Хол":8,"СВЧ":9,"Выт":9,"Дух":11,"Вар":12,"Стир":14,"Суш":18}.items():
             self.assertEqual(appl[code],g)
         bath_sockets = [p for p in eng.EL if p["t"]=="sock" and p["room"].startswith("su-")]
         self.assertTrue(bath_sockets)
         self.assertTrue(all(p["g"]==15 for p in bath_sockets))
         self.assertEqual(set(CONTROLLED),{9,15,19,20,21})
         self.assertEqual([g for g,_ in sorted(CONTROLLED.items(),key=lambda item:item[1][1])],[15,19,20,21,9])
-        for g in (10,11,12,13,14,16,17,18):
+        for g in (8,11,12,13,14,16,17,18):
             self.assertNotIn(g,CONTROLLED)
 
     def test_panel_has_room_and_every_group_once(self):
         for row in eng.PANEL_ROWS:
             self.assertEqual(sum(eng.DEV[k][3] for k in row),18)
-        self.assertEqual(len(eng.PANEL_ROWS),6)
+        self.assertEqual(len(eng.PANEL_ROWS),5)
         groups=[int(k) for row in eng.PANEL_ROWS for k in row if k.isdigit()]
-        self.assertEqual(sorted(groups),list(range(1,22)))
-        self.assertEqual(eng.DEV["free2"][3],10)
+        self.assertEqual(sorted(groups),[1,3,4,5,8,9,11,12,13,14,15,16,17,18,19,20,21])
+        self.assertEqual(eng.DEV["free2"][3],2)
+
+    def test_shared_groups_and_removed_numbers(self):
+        for p in eng.EL + eng.SW + eng.LT:
+            self.assertNotIn(p["g"],{2,6,7,10})
+        for p in eng.EL:
+            if p["room"] in ("detskaya-1","detskaya-2"):
+                self.assertEqual(p["g"],5)
+            if p["room"] in ("spalnya","prihozhaya","koridor","sport") and p["t"] in ("sock","floor"):
+                self.assertEqual(p["g"],4)
+        self.assertEqual({p["g"] for p in eng.LT},{1,3})
+        self.assertEqual(len(eng.GROUPS),17)
 
     def test_switched_lines_keep_neutrals_and_ac_supply_separate(self):
         for g,(actor,order,method,restore) in CONTROLLED.items():
