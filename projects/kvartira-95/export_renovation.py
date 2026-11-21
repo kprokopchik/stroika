@@ -42,7 +42,7 @@ def write_exports(rows,src,room_totals,room_work):
   data.append(vals)
   vals=vals.copy();vals[7]=('formula',(f'ROUND(E{i}*(1+F{i})/G{i},3)' if r['id'] in {'wardrobe','shallowwardrobe','desk','kitchenbase','kitchenupper','worktop'} else f'ROUNDUP(E{i}*(1+F{i})/G{i},0)'),r['packs']);vals[9]=('formula',f'ROUND(H{i}*I{i},0)',r['cost']);vals[10]=('formula',f'H{i}*G{i}',r['buy']);excel.append(vals)
  def csvfile(name,items):
-  with (dest/name).open('w',encoding='utf-8-sig',newline='') as fp:csv.writer(fp,delimiter=';').writerows(items)
+  with (dest/name).open('w',encoding='utf-8-sig',newline='') as fp:csv.writer(fp,delimiter=';',lineterminator='\n').writerows(items)
  csvfile('v1-procurement.csv',data)
  roomdata=[['Помещение','Код','Позиция','Нетто комнаты','Ед.','Доля закупки ₽']]
  for r in rows:
