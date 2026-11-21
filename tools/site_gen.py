@@ -428,12 +428,14 @@ def pages_for(p, projects):
             sec_cards.append(f'''<a class="card rcard" href="{rel(vdir, f"{vdir}/{s['id']}/index.html")}">
   <h3>{E(s["name"])}{badge}</h3><p>{E(s["about"])}</p></a>''')
         gal = gallery_html(p, vdir, n, v["gallery"])
+        photo_link = '<p><a class="btn" href="#interiors">Фотореалистичные интерьеры →</a></p>' if n in getattr(p.obj, "NEURAL_VARIANTS", ()) else ""
         preview = svg_with(svg, asset(vdir, p.meta["plan_image"]))
         body = f'''<header class="phead">
   <div class="eyebrow">{E(p.meta["title"])} · {vname}</div>
   <h1>{v["title"]}</h1>
   <p class="lede">{v["lede"]}</p>
   {chips(v["chips"])}
+{photo_link}
   {pdfs(pdf_link(p, vdir, f"v{n}-album", "Все листы варианта одним PDF"), pdf_link(p, vdir, f"v{n}-plan", "План, PDF A3"))}
 </header>
 <section class="block vplan">
@@ -443,7 +445,7 @@ def pages_for(p, projects):
 <section class="block"><h2>Комнаты</h2><div class="rcards">{"".join(rooms_cards)}</div></section>
 {tips_block(p, vdir, n)}
 <section class="block"><h2>Разделы проекта</h2><div class="rcards">{"".join(sec_cards)}</div></section>
-<section class="block"><h2>В объёме</h2>
+<section class="block" id="interiors"><h2>Визуализации и 3D</h2>
   <p>{link(vdir, vdir + "/3d", "Открыть 3D-модель →", "btn")}</p>
   {gal}
 </section>'''
@@ -481,8 +483,13 @@ def pages_for(p, projects):
                 hint = f'<p class="sub">Как в варианте {from_v}.</p>' if from_v != n else ""
                 notes = note_card(t, meta, lis) + hint
             shots = [s for s in r.get("shots", {}).get(n, []) if (p.dir / "renders" / f"{s}.jpg").exists()]
-            figs = "".join(figure(asset(rdir, f"renders/{s}.jpg"), caption_for(p, s)) for s in shots)
-            gal = f'<section class="block"><h2>Рендеры</h2><div class="gallery">{figs}</div></section>' if figs else ""
+            photo = any(render_image(p, s, n).endswith(".png") for s in shots)
+            figs = "".join(figure(asset(rdir, render_image(p, s, n)), caption_for(p, s)) for s in shots)
+            sources = "".join(figure(asset(rdir, f"renders/{s}.jpg"), caption_for(p, s)) for s in shots) if photo else ""
+            source_details = f'<details class="render-sources"><summary>Исходные 3D-ракурсы для сравнения</summary><div class="gallery">{sources}</div></details>' if sources else ""
+            title = "Фотореалистичная визуализация" if photo else "Рендеры"
+            note = f'<p class="sub">{PHOTO_NOTE}</p>' if photo else ""
+            gal = f'<section class="block"><h2>{title}</h2>{note}<div class="gallery">{figs}</div>{source_details}</section>' if figs else ""
             secs = "".join(f'<li>{link(rdir, f"{vdir}/{s["id"]}/{r["id"]}", E(s["name"]))}</li>' for s in o.SECTIONS)
             prev_id = room_ids[i - 1]
             next_id = room_ids[(i + 1) % len(room_ids)]
@@ -597,6 +604,17 @@ def caption_for(p, shot):
     return dict(v["gallery"]).get(key, key)
 
 
+PHOTO_NOTE = "Нейровизуализация отделки по 3D-ракурсам. Размеры, проходы и расстановку проверяйте по плану; мелкие детали и вид из окон условные."
+
+
+def render_image(p, shot, variant):
+    """Фотореалистичная версия только для явно включённых вариантов объекта."""
+    photo = f"renders/neural/{shot}.png"
+    if variant in getattr(p.obj, "NEURAL_VARIANTS", ()) and (p.dir / photo).exists():
+        return photo
+    return f"renders/{shot}.jpg"
+
+
 def gallery_html(p, page_dir, n, shots):
     shots = [(k, c) for k, c in shots if (p.dir / "renders" / f"v{n}-{k}.jpg").exists()]
     if not shots:
@@ -609,7 +627,14 @@ def gallery_html(p, page_dir, n, shots):
         hero = f'<div class="gallery-hero">{figure(src("top"), cap["top"], True, 900, 1170)}<div class="stack">{side}</div></div>'
         used = {"top", "doll_sw", "doll_ne"}
     rest = "".join(figure(src(k), c) for k, c in shots if k not in used)
-    return f'{hero}<div class="gallery">{rest}</div>'
+    original = f'{hero}<div class="gallery">{rest}</div>'
+    photos = [(k, c) for k, c in shots if render_image(p, f"v{n}-{k}", n).endswith(".png")]
+    if not photos:
+        return original
+    photo_figs = "".join(figure(rel(page_dir, f'{p.slug}/{render_image(p, f"v{n}-{k}", n)}'), c) for k, c in photos)
+    return (f'<h3>Фотореалистичные интерьеры</h3><p class="sub">{PHOTO_NOTE}</p>'
+            f'<div class="gallery">{photo_figs}</div>'
+            f'<details class="render-sources"><summary>3D-схемы и исходные ракурсы</summary>{original}</details>')
 
 
 def index_page(projects):
