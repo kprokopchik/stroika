@@ -52,6 +52,12 @@ td b { color: #147A82; }
 .pdiag { break-inside: avoid; }
 .pd-fig { border: 0.6pt solid #C9D3D2; border-radius: 2mm; padding: 2mm; display: flex; justify-content: center; }
 .pd-fig svg { width: 100%; height: auto; max-height: 215mm; }
+.pdetail { break-before: page; }
+.pdetail > h2 { margin-top: 0; }
+.pdetail .pd-fig { border: 0; padding: 0; }
+.pdetail .pd-fig svg { max-height: 125mm; }
+.pdetail table { font-size: 8.5pt; }
+.pdetail ul { margin: 1mm 0 2mm; padding-left: 5mm; }
 .pinfo { columns: 2; column-gap: 5mm; break-before: page; }
 .pinfo h3 { column-span: all; }
 .pi { break-inside: avoid; border-bottom: 0.5pt solid #D1DAD9; padding: 1.5mm 0; font-size: 8pt; }

@@ -44,7 +44,13 @@ def blocks_print(blocks):
         kind = b[0]
         if kind == "links":
             _, title, links = b
-            out.append(f'<h3>{E(title)}</h3><ul>' + "".join(f'<li><b>{E(label)}</b>: {E(description)}</li>' for label, _, description in links) + '</ul>')
+            items=[]
+            for label, href, description in links:
+                name=f'<b>{E(label)}</b>'
+                if href.startswith(('https://','http://')):
+                    name=f'<a href="{E(href, quote=True)}">{name}</a>'
+                items.append(f'<li>{name}: {E(description)}</li>')
+            out.append(f'<h3>{E(title)}</h3><ul>' + ''.join(items) + '</ul>')
         elif kind == "image":
             _, title, data, caption = b
             file = Path(data["file"])
@@ -55,6 +61,10 @@ def blocks_print(blocks):
             out.append('<div class="pcards">' + "".join(G.note_card(t, m, lis) for t, m, lis in b[1]) + "</div>")
         elif kind == "details":
             out.append(f'<h2>{E(b[2])}</h2>'+blocks_print(b[3]))
+        elif kind == "sheet":
+            _, key, title, children = b
+            out.append(f'<section class="pdetail" id="{E(key)}"><h2>{E(title)}</h2>'
+                       f'{blocks_print(children)}</section>')
         elif kind == "table":
             out.append(G.table_html(*b[1:]))
         elif kind == "filter_table":

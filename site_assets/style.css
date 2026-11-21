@@ -302,6 +302,9 @@ details.info summary .m { font: 500 12px var(--f-mono); color: var(--muted); }
 .tips li { font-size: 14px; }
 /* блоки инженерных разделов */
 .eblocks { gap: 22px; }
+.doc-sheet { min-width:0; scroll-margin-top:80px; }
+.doc-sheet > h2 { margin-bottom:12px; }
+.doc-sheet .pz-diagram .pz { width:100%; min-width:0; min-height:0; height:auto; aspect-ratio:900 / 657; }
 .ecards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
 .tblock, .dblock { display: grid; gap: 8px; min-width: 0; }
 .tblock h3, .dblock h3 { font-size: 17px; margin: 0; }

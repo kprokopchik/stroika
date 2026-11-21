@@ -204,6 +204,10 @@ def blocks_html(blocks):
             _, key, title, children = b
             out.append(f'<details class="doc-details" id="{E(key)}" data-doc-details><summary>{E(title)}</summary>'
                        f'<div class="doc-details-body">{blocks_html(children)}</div></details>')
+        elif kind == "sheet":
+            _, key, title, children = b
+            out.append(f'<section class="doc-sheet" id="{E(key)}"><h2>{E(title)}</h2>'
+                       f'{blocks_html(children)}</section>')
         elif kind == "table":
             out.append(table_html(*b[1:]))
         elif kind == "filter_table":

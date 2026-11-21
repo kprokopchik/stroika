@@ -1,6 +1,7 @@
 """Страница шагов с раскрывающимися закупками и компактная печатная версия."""
 from html import escape as E
 import renovation_model as M
+from construction_details import links_for_step
 
 
 def anchor(id):return 'step-'+id.replace('.','-')
@@ -53,6 +54,10 @@ def build_document(rows,plan,src,source_html):
                 tab('Деньги на шаг',['Статья','Сумма, ₽'],amounts)]
         print_detail=[('h2',title(s)),('p',s['action']),('p','Готовность: '+s['ready']),
                       ('p',f'Расходы {M.money(s["cash"])} ₽; резерв {M.money(s["contingency"])} ₽; лимит {M.money(s["total"])} ₽. После: '+', '.join(s['after']))]
+        nodes=links_for_step(s['id'])
+        if nodes:
+            detail.append(('links','Схемы для этого шага',nodes))
+            print_detail.append(('p','Конструктивные схемы: '+', '.join(f'<a href="{href}">{E(label)}</a>' for label,href,_ in nodes)+'. Полный комплект — отдельный PDF «Конструктивные узлы и схемы».'))
         buying=[];compact=[]
         for line in s['purchases']:
             r=items[line['item_id']]
