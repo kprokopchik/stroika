@@ -190,13 +190,59 @@ def blocks_html(blocks):
     out = []
     for b in blocks:
         kind = b[0]
-        if kind == "cards":
+        if kind == "links":
+            _, title, links = b
+            out.append(f'<nav class="doclinks" aria-label="{E(title)}"><h2>{E(title)}</h2><div class="rcards">' + "".join(
+                f'<a class="card rcard" href="{E(href)}"><h3>{E(label)}</h3><p>{E(description)}</p></a>'
+                for label, href, description in links) + '</div></nav>')
+        elif kind == "image":
+            _, title, data, caption = b
+            out.append(f'<div class="dblock"><h3>{E(title)}</h3>' + figure(E(data["src"]), caption, w=data.get("width", 1024), h=data.get("height", 1536)) + '</div>')
+        elif kind == "cards":
             out.append('<div class="ecards">' + "".join(note_card(t, m, lis) for t, m, lis in b[1]) + "</div>")
+        elif kind == "details":
+            _, key, title, children = b
+            out.append(f'<details class="doc-details" id="{E(key)}" data-doc-details><summary>{E(title)}</summary>'
+                       f'<div class="doc-details-body">{blocks_html(children)}</div></details>')
+        elif kind == "sheet":
+            _, key, title, children = b
+            out.append(f'<section class="doc-sheet" id="{E(key)}"><h2>{E(title)}</h2>'
+                       f'{blocks_html(children)}</section>')
         elif kind == "table":
             out.append(table_html(*b[1:]))
+        elif kind == "filter_table":
+            title, heads, rows, note = b[1:]
+            stages = sorted({str(row[1]) for row in rows})
+            options = ''.join(f'<option value="{E(s)}">Этап {E(s)}</option>' for s in stages)
+            out.append('<section class="filter-table" data-filter-table>'
+                       '<div class="table-filters"><label>Найти позицию<input type="search" data-table-search placeholder="Например: фанера, труба, кровать"></label>'
+                       f'<label>Этап<select data-table-stage><option value="">Все этапы</option>{options}</select></label>'
+                       '<button type="button" data-table-reset>Сбросить</button><output data-table-count aria-live="polite"></output></div>'
+                       + table_html(title, heads, rows, note) + '</section>')
+        elif kind == "circuit_browser":
+            _, title, circuits, info = b
+            options = "".join(f'<option value="{E(c["id"])}">{E(c["title"])}</option>' for c in circuits)
+            sheets = []
+            for i, c in enumerate(circuits):
+                # Место под кнопки зума, как в обычном блоке diagram.
+                svg = c["svg"]
+                m = re.search(r'viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"', svg)
+                if m:
+                    x, y, w, h = map(float, m.groups())
+                    svg = svg.replace(m.group(0), f'viewBox="{x:g} {y-w*.13:g} {w:g} {h+w*.13:g}"', 1)
+                sheets.append(f'<details class="circuit-sheet" id="circuit-{E(c["id"])}" data-circuit-panel="{E(c["id"])}"{" open" if i == 0 else ""}>'
+                              f'<summary>{E(c["title"])}</summary>{viewer(svg, "pz-diagram pz-circuit", note="Соединения выбранного блока. Цвета L/N/PE сохранены; подключения других блоков смотрите на их листах.")}</details>')
+                sheets[-1] = "\n".join(line.rstrip() for line in sheets[-1].split("\n"))
+            apparatus = "".join(f'<details class="info" id="info-{k}" data-key="{k}"><summary><b>{t}</b><span class="m">{sub}</span></summary>'
+                                f'<div class="info-body">{body}</div></details>' for k, t, sub, body in info)
+            out.append(f'<section class="circuit-browser" data-circuit-browser><h3>{E(title)}</h3>'
+                       f'<label class="circuit-select">Показать подключение<select data-circuit-select>{options}</select></label>'
+                       f'<div class="circuit-sheets">{"".join(sheets)}</div></section>'
+                       f'<details class="circuit-apparatus"><summary>Параметры и назначение всех аппаратов</summary><div class="infolist">{apparatus}</div></details>')
         elif kind == "diagram":
             _, title, svg, note, *rest = b
             info = rest[0] if rest else None
+            layers = rest[1] if len(rest) > 1 else None
             # место сверху под кнопки просмотра
             m = re.search(r'viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"', svg)
             if m:
@@ -209,7 +255,8 @@ def blocks_html(blocks):
                     f'<details class="info" id="info-{k}" data-key="{k}"><summary><b>{t}</b><span class="m">{sub}</span></summary>'
                     f'<div class="info-body">{body}</div></details>' for k, t, sub, body in info)
                 lst = f'<div class="infolist"><h3>Все аппараты</h3>{items}</div>'
-            out.append(f'<div class="dblock"><h3>{E(title)}</h3>{viewer(svg, "pz-diagram", note=note, pop=bool(info))}{lst}</div>')
+            out.append(f'<div class="dblock"><h3>{E(title)}</h3>{viewer(svg, "pz-diagram", note=note, layers=layers, pop=bool(info))}{lst}</div>')
+            out[-1] = "\n".join(line.rstrip() for line in out[-1].splitlines())
         elif kind == "p":
             out.append(f"<p>{b[1]}</p>")
         elif kind == "h2":
@@ -293,8 +340,10 @@ def nav_tree(projects, page):
                 kids += [f"<li>{a(sp + '/' + r['id'], E(p.room(r, n)['name']))}</li>" for r in p.obj.ROOMS]
                 badge = ' <span class="badge">в работе</span>' if not p.sec(s, n) else ""
                 secs.append(node(sp, E(s["name"]) + badge, kids))
-            kids = [f"<li>{a(vp + '/plan', 'План квартиры')}</li>", f"<li>{a(vp + '/3d', '3D-модель')}</li>",
-                    group("Комнаты", rooms, vp + "/komnaty")] + secs
+            kids = [f"<li>{a(vp + '/plan', 'План квартиры')}</li>"]
+            if not p.meta.get("plans_only"):
+                kids.append(f"<li>{a(vp + '/3d', '3D-модель')}</li>")
+            kids += [group("Комнаты", rooms, vp + "/komnaty")] + secs
             vs.append(node(vp, f"Вариант {n} <span class='sub'>· {E(p.obj.VARIANT_SHORT.get(n, ''))}</span>", kids))
         out.append(node(p.slug, E(p.meta["title"]), vs, "obj"))
     home = f'<li>{a("", "Все объекты", "home")}</li>'
@@ -351,7 +400,7 @@ def pages_for(p, projects):
     cards = []
     for v in p.variants:
         n = v["n"]
-        img = asset(obj_dir, f"renders/v{n}-doll_sw.jpg")
+        img = asset(obj_dir, f"previews/v{n}.svg" if p.meta.get("plans_only") else f"renders/v{n}-doll_sw.jpg")
         cards.append(f'''<a class="card vcard" href="{rel(obj_dir, f"{obj_dir}/v{n}/index.html")}">
   <img src="{img}" alt="" loading="lazy" width="1200" height="800">
   <div class="vc-body"><div class="eyebrow">Вариант {n}</div><h3>{v["title"]}</h3>{chips(v["chips"][:3])}</div></a>''')
@@ -359,7 +408,7 @@ def pages_for(p, projects):
     if p.meta.get("links"):
         li = "".join(f'<li><a href="{E(u)}" rel="noopener" target="_blank">{E(t)}</a></li>' for t, u in p.meta["links"])
         links = f'<div class="card"><h3>Страницы застройщика</h3><ul class="plain">{li}</ul></div>'
-    comp = "".join(f"<tr><td>{a}</td><td>{b}</td><td>{c}</td><td>{d}</td></tr>" for a, b, c, d in p.content.COMPARE)
+    comp = "".join("<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>" for row in p.content.COMPARE)
     heads = "".join(f'<th>Вариант {v["n"]}<br><span class="sub">{E(o.VARIANT_SHORT.get(v["n"], ""))}</span></th>' for v in p.variants)
     check = "".join(f'<tr><td>{a}</td><td class="num">{b}</td><td class="num">{c}</td><td class="num">{d}</td></tr>' for a, b, c, d in p.content.CHECK)
     facts = "".join(f'<span class="fact">{E(f)}</span>' for f in p.meta.get("facts", []))
@@ -407,12 +456,14 @@ def pages_for(p, projects):
             sec_cards.append(f'''<a class="card rcard" href="{rel(vdir, f"{vdir}/{s['id']}/index.html")}">
   <h3>{E(s["name"])}{badge}</h3><p>{E(s["about"])}</p></a>''')
         gal = gallery_html(p, vdir, n, v["gallery"])
+        photo_link = '<p><a class="btn" href="#interiors">Фотореалистичные интерьеры →</a></p>' if n in getattr(p.obj, "NEURAL_VARIANTS", ()) else ""
         preview = svg_with(svg, asset(vdir, p.meta["plan_image"]))
         body = f'''<header class="phead">
   <div class="eyebrow">{E(p.meta["title"])} · {vname}</div>
   <h1>{v["title"]}</h1>
   <p class="lede">{v["lede"]}</p>
   {chips(v["chips"])}
+{photo_link}
   {pdfs(pdf_link(p, vdir, f"v{n}-album", "Все листы варианта одним PDF"), pdf_link(p, vdir, f"v{n}-plan", "План, PDF A3"))}
 </header>
 <section class="block vplan">
@@ -421,17 +472,16 @@ def pages_for(p, projects):
 </section>
 <section class="block"><h2>Комнаты</h2><div class="rcards">{"".join(rooms_cards)}</div></section>
 {tips_block(p, vdir, n)}
-<section class="block"><h2>Разделы проекта</h2><div class="rcards">{"".join(sec_cards)}</div></section>
-<section class="block"><h2>В объёме</h2>
-  <p>{link(vdir, vdir + "/3d", "Открыть 3D-модель →", "btn")}</p>
-  {gal}
-</section>'''
+{('<section class="block"><h2>Разделы проекта</h2><div class="rcards">' + ''.join(sec_cards) + '</div></section>') if sec_cards else ''}
+{('' if p.meta.get('plans_only') else '<section class="block" id="interiors"><h2>Визуализации и 3D</h2><p>' + link(vdir, vdir + '/3d', 'Открыть 3D-модель →', 'btn') + '</p>' + gal + '</section>')}'''
         pages.append(Page(vdir, f"{vname}: {v['title']}", [home, obj_crumb, v_crumb], body, "variant"))
 
         # план целиком
         pdir = f"{vdir}/plan"
-        body = f'''<header class="phead compact"><h1>План квартиры</h1><p class="lede">{vname} · {E(o.VARIANT_SHORT.get(n, ""))}. Размеры в сантиметрах.</p>{pdfs(pdf_link(p, pdir, f"v{n}-plan", "PDF для печати · A3, 1:50"))}</header>
-{viewer(svg_with(svg, asset(pdir, p.meta["plan_image"])), "pz-main", overlay=True)}
+        notice = f'<p>{E(p.meta["plan_notice"])}</p>' if p.meta.get("plan_notice") else ""
+        layers = [("furn", "Мебель", True), ("dims", "Размеры", True)] if p.meta.get("plans_only") else None
+        body = f'''<header class="phead compact"><h1>План квартиры</h1><p class="lede">{vname} · {E(o.VARIANT_SHORT.get(n, ""))}. Размеры в сантиметрах.</p>{notice}{pdfs(pdf_link(p, pdir, f"v{n}-plan", "PDF для печати · A3, 1:50"))}</header>
+{viewer(svg_with(svg, asset(pdir, p.meta["plan_image"])), "pz-main", overlay=True, layers=layers)}
 {LEGEND}
 <section class="block"><h2>Комнаты</h2><div class="rcards">{"".join(x.replace('href="', 'href="../') for x in rooms_cards)}</div></section>'''
         pages.append(Page(pdir, f"План квартиры, {vname.lower()}", [home, obj_crumb, v_crumb, ("План квартиры", pdir)], body, "plan"))
@@ -446,7 +496,8 @@ def pages_for(p, projects):
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/environments/RoomEnvironment.js"></script>
 <script src="''' + rel(ddir, "assets/viewer3d.js") + '''"></script>'''
-        pages.append(Page(ddir, f"3D-модель, {vname.lower()}", [home, obj_crumb, v_crumb, ("3D-модель", ddir)], body, "model", scripts))
+        if not p.meta.get("plans_only"):
+            pages.append(Page(ddir, f"3D-модель, {vname.lower()}", [home, obj_crumb, v_crumb, ("3D-модель", ddir)], body, "model", scripts))
 
         # комнаты
         room_ids = [r["id"] for r in o.ROOMS]
@@ -460,8 +511,13 @@ def pages_for(p, projects):
                 hint = f'<p class="sub">Как в варианте {from_v}.</p>' if from_v != n else ""
                 notes = note_card(t, meta, lis) + hint
             shots = [s for s in r.get("shots", {}).get(n, []) if (p.dir / "renders" / f"{s}.jpg").exists()]
-            figs = "".join(figure(asset(rdir, f"renders/{s}.jpg"), caption_for(p, s)) for s in shots)
-            gal = f'<section class="block"><h2>Рендеры</h2><div class="gallery">{figs}</div></section>' if figs else ""
+            photo = any(render_image(p, s, n).endswith(".png") for s in shots)
+            figs = "".join(figure(asset(rdir, render_image(p, s, n)), caption_for(p, s)) for s in shots)
+            sources = "".join(figure(asset(rdir, f"renders/{s}.jpg"), caption_for(p, s)) for s in shots) if photo else ""
+            source_details = f'<details class="render-sources"><summary>Исходные 3D-ракурсы для сравнения</summary><div class="gallery">{sources}</div></details>' if sources else ""
+            title = "Фотореалистичная визуализация" if photo else "Рендеры"
+            note = f'<p class="sub">{PHOTO_NOTE}</p>' if photo else ""
+            gal = f'<section class="block"><h2>{title}</h2>{note}<div class="gallery">{figs}</div>{source_details}</section>' if figs else ""
             secs = "".join(f'<li>{link(rdir, f"{vdir}/{s["id"]}/{r["id"]}", E(s["name"]))}</li>' for s in o.SECTIONS)
             prev_id = room_ids[i - 1]
             next_id = room_ids[(i + 1) % len(room_ids)]
@@ -473,7 +529,8 @@ def pages_for(p, projects):
 </nav>'''
             body = f'''<header class="phead compact"><div class="eyebrow">{vname}</div><h1>{E(rr["name"])}<span class="m">{E(rr["area"])}</span></h1></header>
 {viewer(svg_with(svg, asset(rdir, p.meta["plan_image"]), crop_box(rr["rect"])), "pz-room")}
-<section class="block two-col">{notes}<div class="card"><h3>Разделы по комнате</h3><ul class="plain">{secs}</ul></div></section>
+{notice if p.meta.get('plans_only') else ''}
+<section class="block two-col">{notes}{('<div class="card"><h3>Разделы по комнате</h3><ul class="plain">' + secs + '</ul></div>') if secs else ''}</section>
 {room_tips(p, n, r["id"])}
 {gal}
 {pager}'''
@@ -497,11 +554,13 @@ def pages_for(p, projects):
             rooms_l = "".join(f'<li>{link(sdir, f"{sdir}/{r["id"]}", E(p.room(r, n)["name"]))}</li>' for r in o.ROOMS)
             plan_svg = svg_with(svg, asset(sdir, p.meta["plan_image"]))
             if D:
-                body = f'''<header class="phead compact"><div class="eyebrow">{vname} · раздел</div><h1>{E(s["name"])}</h1><p class="lede">{E(D["lede"])}</p>{pdfs(pdf_link(p, sdir, f"v{n}-{s['id']}", "PDF раздела · план A3 и пояснения"), pdf_link(p, sdir, f"v{n}-album", "Все листы варианта"))}</header>
-<div class="underlay">{viewer(with_overlay(plan_svg, D["overlay"]), "pz-main", layers=D["layers"], note="Кнопки внизу включают и выключают слои. Щипок или колесо мыши — зум, двойной тап — приблизить.")}</div>
-{legend_html(D["legend"])}
+                section_plan = "" if D.get("hide_plan") else (f'<div class="underlay">{viewer(with_overlay(plan_svg, D["overlay"]), "pz-main", layers=D["layers"], note="Кнопки включают слои; щипок или колесо — зум, двойной тап — приблизить.")}</div>' + legend_html(D["legend"]))
+                extra_cards = "" if D.get("hide_extra_cards") else f'<h2>Подробнее</h2><div class="rcards">{extra}</div>'
+                room_list = "" if D.get("hide_room_list") else f'<div class="card"><h3>По комнатам</h3><ul class="plain cols">{rooms_l}</ul></div>'
+                body = f'''<header class="phead compact"><div class="eyebrow">{vname} · раздел</div><h1>{E(s["name"])}</h1><p class="lede">{E(D["lede"])}</p>{pdfs(pdf_link(p, sdir, f"v{n}-{s['id']}", "PDF раздела" if D.get("hide_plan") else "PDF раздела · план A3 и пояснения"), pdf_link(p, sdir, f"v{n}-album", "Все листы варианта"))}</header>
+{section_plan}
 {blocks_html(D["blocks"])}
-<section class="block"><h2>Подробнее</h2><div class="rcards">{extra}</div><div class="card"><h3>По комнатам</h3><ul class="plain cols">{rooms_l}</ul></div></section>'''
+<section class="block">{extra_cards}{room_list}</section>'''
             else:
                 body = f'''<header class="phead compact"><div class="eyebrow">{vname} · раздел</div><h1>{E(s["name"])}</h1><p class="lede">{E(s["about"])}</p></header>
 <div class="underlay">{viewer(plan_svg, "pz-main")}</div>
@@ -512,7 +571,12 @@ def pages_for(p, projects):
                 xdir = f"{sdir}/{x['id']}"
                 X = D["extras"].get(x["id"]) if D else None
                 if X:
-                    body = f'''<header class="phead compact"><div class="eyebrow">{vname} · {E(s["name"])}</div><h1>{E(x["name"])}</h1><p class="lede">{E(X["lede"])}</p>{pdfs(pdf_link(p, xdir, f"v{n}-{s['id']}-{x['id']}", "PDF для печати · A4"))}</header>
+                    extra_plan = ""
+                    if X.get("overlay"):
+                        extra_base = svg_with(svg, asset(xdir, p.meta["plan_image"]))
+                        extra_plan = f'<div class="underlay">{viewer(with_overlay(extra_base, X["overlay"]), "pz-main", layers=X.get("layers"), note="Размеры и высоты в сантиметрах. Включайте слои и увеличивайте план.")}</div>' + legend_html(X.get("legend", []))
+                    body = f'''<header class="phead compact"><div class="eyebrow">{vname} · {E(s["name"])}</div><h1>{E(x["name"])}</h1><p class="lede">{E(X["lede"])}</p>{pdfs(pdf_link(p, xdir, f"v{n}-{s['id']}-{x['id']}", "PDF · план A3 и ведомость A4" if X.get("overlay") else "PDF для печати · A4"))}</header>
+{extra_plan}
 {blocks_html(X["blocks"])}
 <nav class="pager" aria-label="Раздел">{link(xdir, sdir, "← " + E(s["name"]) + " по всей квартире")}</nav>'''
                 else:
@@ -576,6 +640,17 @@ def caption_for(p, shot):
     return dict(v["gallery"]).get(key, key)
 
 
+PHOTO_NOTE = "Нейровизуализация отделки по 3D-ракурсам. Размеры, проходы и расстановку проверяйте по плану; мелкие детали и вид из окон условные."
+
+
+def render_image(p, shot, variant):
+    """Фотореалистичная версия только для явно включённых вариантов объекта."""
+    photo = f"renders/neural/{shot}.png"
+    if variant in getattr(p.obj, "NEURAL_VARIANTS", ()) and (p.dir / photo).exists():
+        return photo
+    return f"renders/{shot}.jpg"
+
+
 def gallery_html(p, page_dir, n, shots):
     shots = [(k, c) for k, c in shots if (p.dir / "renders" / f"v{n}-{k}.jpg").exists()]
     if not shots:
@@ -588,7 +663,14 @@ def gallery_html(p, page_dir, n, shots):
         hero = f'<div class="gallery-hero">{figure(src("top"), cap["top"], True, 900, 1170)}<div class="stack">{side}</div></div>'
         used = {"top", "doll_sw", "doll_ne"}
     rest = "".join(figure(src(k), c) for k, c in shots if k not in used)
-    return f'{hero}<div class="gallery">{rest}</div>'
+    original = f'{hero}<div class="gallery">{rest}</div>'
+    photos = [(k, c) for k, c in shots if render_image(p, f"v{n}-{k}", n).endswith(".png")]
+    if not photos:
+        return original
+    photo_figs = "".join(figure(rel(page_dir, f'{p.slug}/{render_image(p, f"v{n}-{k}", n)}'), c) for k, c in photos)
+    return (f'<h3>Фотореалистичные интерьеры</h3><p class="sub">{PHOTO_NOTE}</p>'
+            f'<div class="gallery">{photo_figs}</div>'
+            f'<details class="render-sources"><summary>3D-схемы и исходные ракурсы</summary>{original}</details>')
 
 
 def index_page(projects):
@@ -622,14 +704,19 @@ def build_site(root: Path):
         dst = out / p.slug
         dst.mkdir(parents=True)
         shutil.copy(p.dir / p.meta["plan_image"], dst / p.meta["plan_image"])
-        for sub in ("renders", "models", "pdf"):
+        if p.meta.get("plans_only"):
+            (dst / "previews").mkdir()
+            for n, svg in p.svg.items():
+                (dst / "previews" / f"v{n}.svg").write_text(svg.replace('<image class="orig"', '<image style="display:none" class="orig"').replace('__PLAN__', '../' + p.meta['plan_image']), encoding="utf-8")
+        for sub in ("renders", "models", "pdf", "downloads"):
             if (p.dir / sub).exists():
                 shutil.copytree(p.dir / sub, dst / sub)
         pages += pages_for(p, projects)
     for pg in pages:
         d = out / pg.path if pg.path else out
         d.mkdir(parents=True, exist_ok=True)
-        (d / "index.html").write_text(render_page(pg, projects, out), encoding="utf-8")
+        rendered = "\n".join(line.rstrip() for line in render_page(pg, projects, out).splitlines()) + "\n"
+        (d / "index.html").write_text(rendered, encoding="utf-8")
     size = sum(f.stat().st_size for f in out.rglob("*") if f.is_file())
     print(f"docs/: {len(pages)} страниц, {size / 1e6:.1f} МБ")
     return pages

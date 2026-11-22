@@ -816,6 +816,19 @@ def build_furniture(m, variant):
                 box("armback", bx1, by1, 42, bx2, by2, 85, "fabric_sand", bevel=5, seg=3, smooth=True)
             elif k3 == "beanbag":
                 sphere("beanbag", x + w / 2, y + h / 2, 22, w / 2, h / 2, 22, "bed_yellow")
+            elif k3 == "climbwall":
+                # скалодром: фанерная панель на стене и цветные зацепы
+                bk = m.back(x, y, w, h)
+                box("climbpanel", x, y, 0, x + w, y + h, 240, "oak")
+                for _ in range(30):
+                    zz = rnd.uniform(20, 225)
+                    hm = f"book{rnd.randrange(7)}"
+                    if bk in ("top", "bottom"):
+                        fy = y + h if bk == "top" else y
+                        sphere("hold", rnd.uniform(x + 6, x + w - 6), fy, zz, 4.5, 3, 3.5, hm)
+                    else:
+                        fx = x + w if bk == "left" else x
+                        sphere("hold", fx, rnd.uniform(y + 6, y + h - 6), zz, 3, 4.5, 3.5, hm)
             elif cat == "store":
                 box("cabinet", x + 1, y + 1, 0, x + w - 1, y + h - 1, 85, "white")
             elif cat == "seat":
@@ -827,6 +840,29 @@ def build_furniture(m, variant):
             box("rail", it["x1"] - 1, it["y1"], 209, it["x2"] + 1, it["oy2"], 213, "metal_dark")
             box("lintel", it["x1"] - 10, it["y1"] + 2, 210, it["x1"] - 1, it["y2"] - 2, H, "wall")
             box("threshold", it["x1"] - 10, it["y1"] + 2, -0.5, it["x1"] - 1, it["y2"] - 2, 0.1, "oak_floor")
+        elif k == "housebed":
+            # кровать-домик: стойки и двускатный каркас над матрасом, конёк вдоль кровати
+            x, y, w, h = it["x"], it["y"], it["w"], it["h"]
+            zp, zr, r = it.get("post", 135), it.get("ridge", 185), 2.2
+            x1, y1, x2, y2 = x + 2, y + 2, x + w - 2, y + h - 2
+            for px, py in ((x1, y1), (x2, y1), (x2, y2), (x1, y2)):
+                rod(px, py, 0, px, py, zp, r, "oak")
+            if h >= w:
+                cx = (x1 + x2) / 2
+                rod(cx, y1, zr, cx, y2, zr, r, "oak")
+                for py in (y1, y2):
+                    rod(x1, py, zp, cx, py, zr, r, "oak")
+                    rod(x2, py, zp, cx, py, zr, r, "oak")
+                rod(x1, y1, zp, x1, y2, zp, r, "oak")
+                rod(x2, y1, zp, x2, y2, zp, r, "oak")
+            else:
+                cy = (y1 + y2) / 2
+                rod(x1, cy, zr, x2, cy, zr, r, "oak")
+                for px in (x1, x2):
+                    rod(px, y1, zp, px, cy, zr, r, "oak")
+                    rod(px, y2, zp, px, cy, zr, r, "oak")
+                rod(x1, y1, zp, x2, y1, zp, r, "oak")
+                rod(x1, y2, zp, x2, y2, zp, r, "oak")
         elif k == "bridge":
             x, y, w, h = it["x"], it["y"], it["w"], it["h"]
             box("bridge", x, y, 192, x + w, y + h, 196, "oak")

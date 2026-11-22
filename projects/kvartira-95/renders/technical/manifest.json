@@ -1,0 +1,78 @@
+{
+  "status": "Фотореалистичные макеты концепции, точные артикулы ещё подбираются",
+  "sources": [
+    "panel_model.py",
+    "panel_readable.py",
+    "eng.cabinet_svg()"
+  ],
+  "layout": {
+    "modules": 54,
+    "din_rows": 3,
+    "consumer_breakers": 13,
+    "auxiliary_breakers": 1,
+    "rccbs": 4,
+    "rcbos": 0,
+    "load_shedding_contactors": 1,
+    "phase_branch_blocks": [
+      "X15.L",
+      "X20.L"
+    ],
+    "neutral_bars": [
+      "N1",
+      "N2",
+      "N3",
+      "N4S"
+    ],
+    "pe_bar": "XPE"
+  },
+  "geometry_cm": {
+    "section_width": 60,
+    "section_height": 270,
+    "panel_width": 44,
+    "panel_height": 66,
+    "panel_from_floor": [
+      154,
+      220
+    ],
+    "low_voltage_board_from_floor": [
+      64,
+      125
+    ],
+    "button_station_from_floor": [
+      135,
+      141
+    ],
+    "server_shelf": 46
+  },
+  "references": [
+    "v1-panel-layout.svg",
+    "v1-panel-layout.png",
+    "v1-cabinet-layout.svg",
+    "v1-cabinet-elevation.svg",
+    "v1-cabinet-elevation.png"
+  ],
+  "render_files": {
+    "panel": "v1-panel.png",
+    "cabinet": "v1-technical-section.png"
+  },
+  "checks": [
+    "На изображении щита три ряда, четыре УЗО и отдельные обычные автоматы",
+    "Резервы закрыты заглушками, нет дополнительных источников питания и большого контроллера",
+    "Нет общего выходного клеммного ряда; X15.L/X20.L раздельны",
+    "Силовые соединения скрыты защитными панелями; их проверяют по векторной схеме",
+    "В общем виде тот же щит на трёх рейках, кнопочный пост и отдельная слаботочная панель",
+    "Сохранены один контроллер протечек, его питание, одна патч-панель, один коммутатор, один роутер, один ONT и один сервер",
+    "Низ секции свободен; силовой короб слева, связи за монтажной панелью; коммутация порта коммутатора показана снизу за органайзером"
+  ],
+  "limits": [
+    "Форма корпусов и малая маркировка не задают конкретный артикул",
+    "Фотореалистичный вид не является размерным чертежом или схемой соединений",
+    "Размеры для координации брать из размерной схемы; окончательный корпус и аппараты сверить до закупки"
+  ],
+  "files_sha256": {
+    "v1-panel.png": "fcd5cffe8fcced6cf31b1edb158fdbfc589d26b6e2edc621f593836df553f9b9",
+    "v1-technical-section.png": "c7f99b02578d6afa0bf82b53dcc7fee0f3936c7eae17d2f82775d1af4464f3ba",
+    "v1-panel-layout.svg": "4e01e03ca1d59b87333c72c4dccb8b72645263b0f56963f390f6ccef59fe378b",
+    "v1-cabinet-layout.svg": "099e842a99ab3bcdb200c75ed8fd351ef3f0ba03f732e00f0ed629bbb3b85625"
+  }
+}

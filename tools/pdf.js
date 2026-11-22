@@ -6,10 +6,10 @@ const { chromium } = require('playwright');
 
 (async () => {
   const jobs = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
   const page = await browser.newPage();
   for (const j of jobs) {
-    await page.goto('file://' + path.resolve(j.html), { waitUntil: 'networkidle' });
+    await page.setContent(fs.readFileSync(path.resolve(j.html), 'utf8'), { waitUntil: 'networkidle' });
     await page.evaluate(() => document.fonts.ready);
     const footer = `<div style="font: 7px Arial, sans-serif; color: #555; width: 100%; padding: 0 12mm; display: flex; justify-content: space-between;">
       <span>${j.footer.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>
