@@ -185,7 +185,8 @@ def takeoff(e):
  for r in ('su-1','su-2'):
   add('pex20',r,6 if r=='su-1' else 10,'Две магистрали: У1 по3 м, У2 по5 м, включая вертикали',.15)
   add('insulation22',r,6 if r=='su-1' else 10,'Изоляция магистралей, размер22 мм уточнить',.10)
-  for id,n in [('fitting20',4),('sleeve20',4),('filter',2),('reducer',2),('pressuregauge',2),('checkvalve',2),('ballvalve',2),('union',6),('leakvalve',2),('servicecab',1),('cap',2)]:add(id,r,n,'По два независимых постучётных ввода на санузел; часть арматуры условная')
+  for id,n in [('fitting20',4),('sleeve20',4),('filter',2),('reducer',2),('pressuregauge',2),('checkvalve',2),('ballvalve',2),('union',6),('leakvalve',2),('cap',2)]:add(id,r,n,'По два независимых постучётных ввода на санузел; часть арматуры условная')
+  add('servicecab',r,1,'Один комплект на санузел для доступа к стоякам и сервисному модулю')
  add('manifold3','su-1',1,'У1 ГВС 2+1');add('manifold4','su-1',1,'У1 ХВС 3+1')
  add('manifold4','su-2',1,'У2 ГВС 3+1');add('manifold6','su-2',1,'У2 ХВС 5+1');add('manifoldjoin','su-2',1,'Стыковка двух 3-выходных модулей')
  add('leakcontroller','common',1,'Один контроллер на все четыре привода')
